@@ -32,7 +32,7 @@ function calc_stats!(traj, dframes)
     traj
 end
 
-function import_and_calc(cam, dframes = 3)
-    traj, _ = import_coords(cam)
+function import_and_calc(cam, dframes = 3, datadir = datadir)
+    traj, _ = import_coords(cam, datadir)
     calc_stats!(traj, dframes)
 end

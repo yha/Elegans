@@ -5,17 +5,17 @@ using MAT
 #const datadir = "G:\\Results100616exp\\"
 const datadir = "data"
 
-function prefix( camera_dir, datadir = datadir )
-    files = readdir(joinpath( datadir, camera_dir ))
-    prefixes = Set( match( Regex(".*($(camera_dir).*?)\\d+.mat"), f )[1]
+function prefix( cameradir, datadir = datadir )
+    files = readdir(joinpath( datadir, cameradir ))
+    prefixes = Set( match( Regex(".*($(cameradir).*?)\\d+.mat"), f )[1]
                     for f in files )
-    length(prefixes) > 1 && error("More than one prefix in dir $(camera_dir)")
+    length(prefixes) > 1 && error("More than one prefix in dir $(cameradir)")
     first(prefixes)
 end
 
-function filepath_f(camera_dir)
-    pr = prefix(camera_dir)
-    (type, idx) -> "$datadir/$(camera_dir)/$(type)$(pr)$(string(idx;pad=4)).mat"
+function filepath_f( cameradir, datadir = datadir )
+    pr = prefix( cameradir, datadir )
+    (type, idx) -> "$datadir/$(cameradir)/$(type)$(pr)$(string(idx;pad=4)).mat"
 end
 
 filetypes = [(:coords, "corrd", "x_y_coor"),
@@ -36,8 +36,8 @@ nfiles(path_f) = first( i for i in Iterators.countfrom(0)
 
 using DataFrames
 
-function import_coords( camera_dir )
-    path_f = filepath_f(camera_dir)
+function import_coords( cameradir, datadir = datadir )
+    path_f = filepath_f(cameradir, datadir)
     x = Union{Float64,Missing}[]
     y = Union{Float64,Missing}[]
     fileno = Int[]
