@@ -1,6 +1,7 @@
 [deps]
 DSP = "717857b8-e6f2-59f4-9121-6e50c889abd2"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
+DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 Images = "916415d5-f1e6-5110-898d-aaa5f9f070e0"
 Interact = "c601a237-2ae4-5e1e-952c-7a85b0c7eef1"
