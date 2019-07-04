@@ -108,4 +108,4 @@ function mark_stages_gui( datadir = datadir )
     end))
 end
 
-mark_stages_gui()
+#mark_stages_gui()
