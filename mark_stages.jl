@@ -4,9 +4,9 @@ yield() # workaround Juno.jl bug #316, for running as a Juno cell
 include("stages.jl")
 include("readdata.jl")
 include("speed_and_angle.jl")
+include("funcs.jl")
 
-using StatsBase: ecdf, ECDF
-(::ECDF)(::Missing) = missing
+using StatsBase: ecdf
 self_ecdf(x) = ecdf(collect(skipmissing(x))).(x)
 
 using RollingFunctions
