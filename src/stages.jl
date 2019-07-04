@@ -1,11 +1,10 @@
 using TOML
 
 const stage_names = ["L1", "L2", "L3", "L4", "A"]
-
-stages_file = "stages.toml"
-loadstages() = TOML.parsefile(stages_file)
-savestages(stages) = open( io->TOML.print(io,stages), stages_file, "w" )
-#appendstages(stages...) = open( io->TOML.print(io,Dict(stages)), stages_file, "a" )
+const stages_filepath = normpath("$(@__DIR__)/../stages.toml")
+loadstages() = TOML.parsefile(stages_filepath)
+savestages(stages) = open( io->TOML.print(io,stages), stages_filepath, "w" )
+#appendstages(stages...) = open( io->TOML.print(io,Dict(stages)), stages_filepath, "a" )
 
 function spans( stages, ex, cam )
     frames_per_hr = frames_per_s * 3600
