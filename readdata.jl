@@ -7,15 +7,16 @@ const datadir = "data"
 
 function prefix( cameradir, datadir = datadir )
     files = readdir(joinpath( datadir, cameradir ))
-    prefixes = Set( match( Regex(".*($(cameradir).*?)\\d+.mat"), f )[1]
+    path, dir = splitdir(cameradir)
+    prefixes = Set( match( Regex(".*($(dir).*?)\\d+.mat"), f )[1]
                     for f in files )
-    length(prefixes) > 1 && error("More than one prefix in dir $(cameradir)")
+    length(prefixes) > 1 && error("More than one prefix in dir $(dir)")
     first(prefixes)
 end
 
 function filepath_f( cameradir, datadir = datadir )
     pr = prefix( cameradir, datadir )
-    (type, idx) -> "$datadir/$(cameradir)/$(type)$(pr)$(string(idx;pad=4)).mat"
+    (type, idx) -> "$datadir/$cameradir/$type$pr$(string(idx;pad=4)).mat"
 end
 
 filetypes = [(:coords, "corrd", "x_y_coor"),
@@ -59,7 +60,6 @@ function import_coords( cameradir, datadir = datadir )
     df = DataFrame( fileno = fileno, x = x, y = y )
     df, batch_boundaries
 end
-
 
 const frames_per_s = 3
 const pixel_size_μm = 10
