@@ -3,7 +3,7 @@ using MAT
 #using ProgressBars
 
 #const datadir = "G:\\Results100616exp\\"
-const datadir = "data"
+const datadir = normpath("$(@__DIR__)/../data")
 
 function prefix( cameradir, datadir = datadir )
     files = readdir(joinpath( datadir, cameradir ))
