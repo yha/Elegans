@@ -107,4 +107,8 @@ function mark_stages_gui( datadir = datadir )
     end))
 end
 
+using Blink
+mark_stages_window(datadir=datadir) = body!(Window(), mark_stages_gui(datadir))
+
 #mark_stages_gui()
+#mark_stages_window()
