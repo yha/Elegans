@@ -87,7 +87,7 @@ function mark_stages_gui( datadir = datadir )
                 @manipulate for boundaries_txt = textbox(
                             value = fmtboundaries(something(boundaries, default_boundaries)))
                     plt = plot( t, trace,
-                                xlabel="hr", ylabel="um/s", legend=false )
+                                xlabel="hr", ylabel="px/s", legend=false )
                     m = match(Regex("(.+?)-(.+?),\\s*"^4 * "(.+?)-?\$"), boundaries_txt)
                     if m == nothing
                         new_boundaries = nothing

@@ -62,4 +62,6 @@ function import_coords( cameradir, datadir = datadir )
 end
 
 const frames_per_s = 3
-const pixel_size_μm = 10
+
+# TODO pixel size per experiment? (pixels were 10μm in older experiments)
+# const pixel_size_μm = 10

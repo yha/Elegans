@@ -17,14 +17,15 @@ function calc_stats!(traj, dframes)
                 res[dframes+1:end] .= @views (x[1+dframes:end] .- x[1:end-dframes]);
                 res)
 
-    traj.vx = d_pad(traj.x) * pixel_size_μm / dt
-    traj.vy = d_pad(traj.y) * pixel_size_μm / dt
-    #traj.ax = d_pad(traj.vx) * pixel_size_μm / dt
-    #traj.ay = d_pad(traj.vy) * pixel_size_μm / dt
+    # velocities in pixels/s
+    traj.vx = d_pad(traj.x) / dt
+    traj.vy = d_pad(traj.y) / dt
+    # traj.ax = d_pad(traj.vx) / dt
+    # traj.ay = d_pad(traj.vy) / dt
     traj.speed = [hypot(x,y) for (x,y) in zip(traj.vx, traj.vy)]
-    #traj.acc = [hypot(x,y) for (x,y) in zip(traj.ax, traj.ay)]
+    # traj.acc = [hypot(x,y) for (x,y) in zip(traj.ax, traj.ay)]
     traj.angle = [atan(y,x) for (x,y) in zip(traj.vx, traj.vy)]
-    #traj.dangle = fix_angle.( [missing;diff(traj.angle)] )
+    # traj.dangle = fix_angle.( [missing;diff(traj.angle)] )
     traj.dangle = fix_angle.( d_pad(traj.angle) )
 
     # traj.acc_left = [(-ax*vy + ay*vx)/s for (ax,ay,vx,vy,s) in
