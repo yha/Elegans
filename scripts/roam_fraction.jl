@@ -1,9 +1,6 @@
-include("readdata.jl")
-include("funcs.jl")
-include("stages.jl")
-include("speed_and_angle.jl")
-
+using Elegans
 using RollingFunctions
+using DataFrames
 
 const frames_per_hr = frames_per_s * 3600
 
@@ -21,9 +18,9 @@ function roam(traj, rows, slope)
     isroaming.(smspeed, smdangle, slope)
 end
 
-function roam_for_stage(cam, traj, stage)
+function roam_for_stage(ex, cam, traj, stage)
     slope = [5, 2.5, 2.3, 2, 1.5][stage]
-    idxs = [round.(Int, stages[cam] .* frames_per_hr); nrow(traj)]
+    idxs = [round.(Int, stages[ex][cam] .* frames_per_hr); nrow(traj)]
     rows = idxs[2stage-1]:idxs[2stage]
     roam(traj, rows, slope)
 end
@@ -31,15 +28,19 @@ end
 ##
 
 using DataStructures
-stages = OrderedDict(sort(pairs(stages)))
+using Statistics
 n_bins = 75
-cams = collect(keys(stages))
-fracs = Matrix{Vector{Union{Missing,Float64}}}(undef, length(cams), 5)
-for (i,cam) in enumerate(cams)
-    @show cam
-    traj = import_and_calc(cam, 3)
+exps = sort!(collect(keys(stages)))
+cams = mapreduce( pair -> tuple.(pair[1],keys(sort(pair[2]))),
+                  append!, sort(stages), init=[])
+                  
+fracs = Array{Vector{Union{Float64,Missing}},2}(undef,length(cams),5)
+@progress for (i,(ex,cam)) in enumerate(cams)
+    path = joinpath(ex,cam)
+    println(path)
+    traj = import_and_calc(path, 3)
     for stage = 1:5
-        r = roam_for_stage(cam, traj, stage)
+        r = roam_for_stage(ex, cam, traj, stage)
         fracs[i,stage] = mean.(Iterators.partition(r,ceil(Int,length(r)/n_bins)))
     end
 end
@@ -48,52 +49,34 @@ end
 
 using Plots
 
+function short_cam_name(ex,cam)
+    ex_num = match(r"Results(.*)", ex).captures[1]
+    cam_num = match(r"CAM(.*)", cam).captures[1]
+    "$ex_num: $cam_num"
+end
+
+stage_names = Elegans.stage_names
+
 plot_cams = [1,2,3]
 plot_fracs = fracs[plot_cams,:]
-plts = [plot(fracs[i,stage], title="$(cams[i]), $(stage_names[stage])", ylims=(0,1))
-        for stage in 1:5, i in plot_cams]
+plts = [plot(fracs[cam,stage],
+            title="$(short_cam_name(cams[cam]...)) \n$(stage_names[stage])",
+            ylims=(0,1))
+        for stage in 1:5, cam in plot_cams]
 plot( plts..., layout=size(plts'), legend=false, titlefontsize=8)
 
 ##
 frc = reduce(hcat, reduce(vcat,fracs[i,:]) for i=1:length(cams))
-heatmap(m2n.(frc'))
+heatmap(coalesce.(frc',NaN))
 vline!((1:4) .* 75, label="", c="white", ls=:dash)
 
 ##
-hm_roaming(stage) = heatmap( m2n.(reduce(hcat,fracs[:,stage])'),
+hm_roaming(stage) = heatmap( coalesce.(reduce(hcat,fracs[:,stage])', NaN),
                              yticks = 1:size(fracs,1),
-                             yformatter = x->cams[round(Int,x)],
+                             yformatter = x->short_cam_name(cams[round(Int,x)]...),
                              clims = (0,1),
-                             title = stage_names[stage] )
+                             title = stage_names[stage], size=(800,600) )
 using Interact
 @manipulate for stage = 1:5
     hm_roaming(stage)
 end
-
-##
-
-# function fractions(traj, rows, slope)
-#     rm = roam(traj, rows, slope)
-#     (roaming = mean(isequal(true),rm),
-#      dwelling = mean(isequal(false),rm),
-#      missing = mean(ismissing,rm))
-# end
-#
-# function stage_fractions(cam)
-#     traj, _ = import_coords("CAM207A2")
-#     calc_stats!(traj, 3)
-#     n = nrow(traj)
-#
-#     [fractions(traj, stage_rs(cam,stage,n)...) for stage=1:5]
-#         #for (i,slope) in zip(Iterators.partition(idxs,2), slopes)]
-# end
-#
-# ##
-# using StatsPlots
-# fracs = stage_fractions("CAM207A2")
-# plot(stage_names, [f.roaming for f in fracs], label="roaming")
-# plot!(stage_names, [f.missing for f in fracs], label="missing")
-#
-# ##
-#
-# roam(traj, 10_000:nrow(traj),
