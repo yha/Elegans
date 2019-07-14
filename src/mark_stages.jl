@@ -39,8 +39,6 @@ fmtboundaries(::Nothing) = "(none)"
 using Interact, Plots
 using DataStructures
 
-stages = DefaultDict(()->Dict{AbstractString,Any}(), loadstages())
-
 function mark_stages_gui( datadir = datadir )
     stages = DefaultDict(()->Dict{AbstractString,Any}(), loadstages())
 
@@ -74,7 +72,7 @@ function mark_stages_gui( datadir = datadir )
 
             t = skip_hrs : chunksize/frames_per_hr : life_hrs
             sel_t = 0:0.1:round(life_hrs,digits=1)
-            boundaries = get(stages,cam,nothing)
+            boundaries = get(stages[exp],cam,nothing)
             new_boundaries = nothing
             btn = button("save")
             on(btn) do _
@@ -109,6 +107,3 @@ end
 
 using Blink
 mark_stages_window(datadir=datadir) = body!(Window(), mark_stages_gui(datadir))
-
-#mark_stages_gui()
-#mark_stages_window()
