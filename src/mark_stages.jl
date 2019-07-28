@@ -39,11 +39,13 @@ fmtboundaries(::Nothing) = "(none)"
 using Interact, Plots
 using DataStructures
 
+const _exclude_dirs = ("\$RECYCLE.BIN", "System Volume Information")
+
 function mark_stages_gui( datadir = datadir )
     stages = DefaultDict(()->Dict{AbstractString,Any}(), loadstages())
 
     hm_toggle = toggle(true, label="hide marked")
-    exps = filter(x->isdir(joinpath(datadir,x)), readdir(datadir))
+    exps = filter(x -> !(x in _exclude_dirs) && isdir(joinpath(datadir,x)), readdir(datadir))
     exp_dd = dropdown(exps)
     all_cams = Observables.@map filter(fname->isdir(joinpath(datadir,&exp_dd,fname)),
                                        readdir(joinpath(datadir,&exp_dd)))
