@@ -1,15 +1,14 @@
 using MAT
-#using Juno
-#using ProgressBars
+using VideoIO
 
-#const datadir = "G:\\Results100616exp\\"
+#const datadir = "D:/"
 const datadir = normpath("$(@__DIR__)/../data")
 
 function prefix( cameradir, datadir = datadir )
     files = readdir(joinpath( datadir, cameradir ))
     path, dir = splitdir(cameradir)
-    prefixes = Set( match( Regex(".*($(dir).*?)\\d+.mat"), f )[1]
-                    for f in files )
+    matches = [match( Regex(".*($(dir).*?)\\d+.mat"), f ) for f in files]
+    prefixes = Set( m[1] for m in matches if m !== nothing )
     length(prefixes) > 1 && error("More than one prefix in dir $(dir)")
     first(prefixes)
 end
@@ -29,6 +28,39 @@ for (sym, prefix, varname) in filetypes
         tr = matopen(path_f($prefix,idx)) do file
             read(file,$varname)
         end
+    end
+end
+
+function _readall!(f, firstframe)
+    out = [firstframe]
+    while !eof(f)
+        push!(out, read(f))
+    end
+    out
+end
+_readall!(f) = _readall!(f,read(f))
+
+function video_prefix( cameradir, datadir = datadir )
+    files = readdir(joinpath( datadir, cameradir ))
+    path, dir = splitdir(cameradir)
+    dir = chop(dir,tail=2)
+    matches = [match( Regex(".*($(dir).*?)\\d+.mp4"), f ) for f in files]
+    prefixes = Set( m[1] for m in matches if m !== nothing )
+    length(prefixes) > 1 && error("More than one prefix in dir $(dir)")
+    first(prefixes)
+end
+
+function videopath_f( cameradir, datadir = datadir )
+    pr = video_prefix( cameradir, datadir )
+    idx -> "$datadir/$cameradir/shape$pr$(string(idx;pad=4)).mp4"
+end
+
+function read_video(path_f, idx)
+    vid = openvideo(path_f(idx))
+    try
+        _readall!(vid)
+    finally
+        close(vid)
     end
 end
 
