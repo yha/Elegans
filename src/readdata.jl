@@ -18,7 +18,8 @@ function filepath_f( cameradir, datadir = datadir )
     (type, idx) -> "$datadir/$cameradir/$type$pr$(string(idx;pad=4)).mat"
 end
 
-filetypes = [(:coords, "corrd", "x_y_coor"),
+#filetypes = [(:coords, "corrd", "x_y_coor"),
+filetypes = [(:coords, "coord", "x_y_coor"),
              (:cropped, "short", "mydata"),
              (:trace, "Trajectory", "Trace"),
              (:size, "WormSize", "big")]
@@ -65,7 +66,8 @@ function read_video(path_f, idx)
 end
 
 nfiles(path_f) = first( i for i in Iterators.countfrom(0)
-                             if !isfile(path_f("corrd",i)) )
+                             if !isfile(path_f("coord",i)) )
+#                             if !isfile(path_f("corrd",i)) )                                 
 
 using DataFrames
 
