@@ -1,5 +1,5 @@
 import TOML
-yield() # workaround Juno.jl bug #316, for running as a Juno cell
+#yield() # workaround Juno.jl bug #316, for running as a Juno cell
 
 include("stages.jl")
 include("readdata.jl")
@@ -38,14 +38,22 @@ fmtboundaries(::Nothing) = "(none)"
 
 using Interact, Plots
 using DataStructures
+using ScanDir
 
 const _exclude_dirs = ("\$RECYCLE.BIN", "System Volume Information")
 
-function mark_stages_gui( datadir = datadir )
-    stages = DefaultDict(()->Dict{AbstractString,Any}(), loadstages())
+function find_exps(root; onerror=e->(showerror(stderr,e);println(stderr)))
+    alldirs = collect(ScanDir.walkdir(root; onerror=onerror))
+    [relpath(x.root, root) for x in alldirs
+            if !isempty(x.dirs) && startswith(x.dirs[1], "CAM")]
+end
+
+function mark_stages_gui( datadir = datadir, stagefile=stages_filepath )
+    stages = DefaultDict(()->Dict{AbstractString,Any}(), loadstages(stagefile))
 
     hm_toggle = toggle(true, label="hide marked")
-    exps = filter(x -> !(x in _exclude_dirs) && isdir(joinpath(datadir,x)), readdir(datadir))
+    #exps = filter(x -> !(x in _exclude_dirs) && isdir(joinpath(datadir,x)), dir)
+    exps = find_exps(datadir)
     exp_dd = dropdown(exps)
     all_cams = Observables.@map filter(fname->isdir(joinpath(datadir,&exp_dd,fname)),
                                        readdir(joinpath(datadir,&exp_dd)))
@@ -80,7 +88,7 @@ function mark_stages_gui( datadir = datadir )
             on(btn) do _
                 TOML.print( stdout, Dict(exp => Dict(cam => new_boundaries)) )
                 stages[exp][cam] = new_boundaries
-                savestages(stages)
+                savestages(stages, stagefile)
                 hm_toggle[] = hm_toggle[] # trigger reload
             end
             vbox( fmtboundaries(boundaries), begin
@@ -102,10 +110,13 @@ function mark_stages_gui( datadir = datadir )
                 btn
             )
         catch e
+            showerror(stderr, e)
+            show(stderr, MIME("text/plain"), stacktrace(catch_backtrace()))
             e
         end
     end))
 end
 
 using Blink
-mark_stages_window(datadir=datadir) = body!(Window(), mark_stages_gui(datadir))
+mark_stages_window(datadir=datadir, stagefile=stages_filepath) = body!(
+        Window(), mark_stages_gui(datadir, stagefile))
