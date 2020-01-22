@@ -1,6 +1,7 @@
 using Contour
 import Images, ImageFiltering
 using Images: otsu_threshold, imfilter
+using CircularArrays
 #using OffsetArrays
 using GeometryTypes
 using LinearAlgebra
@@ -10,9 +11,8 @@ import ShiftedArrays
 const cshift = ShiftedArrays.circshift
 
 # A closed 2d curve with circular indexing
-struct Closed2DCurve{T}
-    # "raw" vertices, without repeating the first vertex at the end
-    vertices::Vector{Point{2,T}}
+struct Closed2DCurve{T} <: AbstractVector{Point{2,T}}
+    vertices::CircularVector{Point{2,T}}
     function Closed2DCurve(v::AbstractVector{Point{2,T}}; orient_pos=false) where T
         vertices = if orient_pos && !_is_positively_oriented(v)
             v = reverse(v)
@@ -21,7 +21,7 @@ struct Closed2DCurve{T}
         else
             v
         end
-        new{T}(vertices)
+        new{T}(CircularVector(vertices))
     end
 end
 
@@ -32,16 +32,19 @@ function Closed2DCurve( c::Contour.Curve2; orient_pos=false )
     Closed2DCurve( Point.(c.vertices[1:end-1]); orient_pos=orient_pos )
 end
 vertices(c::Closed2DCurve) = c.vertices
-vertices_closed(c::Closed2DCurve) = push!(copy(c.vertices),c.vertices[1])
+vertices_closed(c::Closed2DCurve) = push!(Vector(c.vertices),first(c.vertices))
 
-Base.length(c::Closed2DCurve) = length(c.vertices)
-Base.getindex(c::Closed2DCurve, i::Int) = c.vertices[mod1(i,length(c.vertices))]
+Base.size(c::Closed2DCurve) = (length(c.vertices),)
+Base.getindex(c::Closed2DCurve, i::Int) = c.vertices[i]
 
-Base.iterate(c::Closed2DCurve, state=firstindex(c.vertices)) = ( state > length(c.vertices)
+Base.iterate(c::Closed2DCurve, state=firstindex(c.vertices)) = ( state > lastindex(c.vertices)
                 ? nothing : (c.vertices[state], state+1) )
-Base.eltype(::Type{Closed2DCurve{T}}) where T = Point{2,T}
-Base.IteratorSize(::Type{Closed2DCurve{T}}) where T = Base.HasLength()
+#Base.eltype(::Type{Closed2DCurve{T}}) where T = Point{2,T}
+#Base.IteratorSize(::Type{Closed2DCurve{T}}) where T = Base.HasLength()
 
+# This method is necessary to allow general indexing (e.g. with ranges) out of
+# the underlying vector's axes.
+Base.checkbounds(::Type{Bool}, ::Closed2DCurve, I...) = true
 
 _circshift( c::Closed2DCurve, shift ) = circshift( c.vertices, shift )
 Base.circshift( c::Closed2DCurve, shift ) = Closed2DCurve(_circshift(c))

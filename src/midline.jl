@@ -85,23 +85,6 @@ function follow_line(thin_mask)
     line
 end
 
-using Dierckx
-
-function line2spline(line)
-    d = norm.(Tuple.(diff(line)))
-    d ./= sum(d)
-    # length parameter
-    s = [0.0; cumsum(d)]
-    # # vector of CartesianIndex => array with [x,y] pairs in columns
-    # A = mapreduce(i->[i[2],i[1]], hcat, line)
-    A = reduce(hcat, line)
-
-    # output spline is approximately length-parameterized (exact at knot points)
-    spl = ParametricSpline(s,A)
-end
-
-resample_line(line, s) = Point2.(eachcol(line2spline(line)(s)))
-
 using ImageMorphology
 
 default_threshold(image) = ((min,max) = extrema(image); min + 0.5*(max-min))
