@@ -22,6 +22,10 @@ function get_frame(cache::VideoCache, i)
         Elegans.read_video( cache.path_f, fileno )
     end
     frame = frames[i-file_offset]
+    # Frame should have odd size, but may be padded to even size
+    # due to encoding limitations. Undo padding.
+    frame = frame[1:end-mod((size(frame,1)+1),2),
+                  1:end-mod((size(frame,2)+1),2)]
 end
 
 nframes(cache::VideoCache) = cache.boundaries[end]
