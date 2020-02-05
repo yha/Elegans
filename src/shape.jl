@@ -1,5 +1,6 @@
 using Dierckx
 using IterTools
+using GeometryTypes: Point2
 using LinearAlgebra, Statistics
 
 merge_nearby_points(line, th=0.01) = IterTools.imap( mean,
@@ -17,13 +18,17 @@ function line2spline(line, th=0.01)
     # A = mapreduce(i->[i[2],i[1]], hcat, line)
     A = reduce(hcat, line)
 
-    # output spline is approximately length-parameterized (exact at knot points)
+    # output spline is approximately length-parameterized
     spl = ParametricSpline(s,A)
 end
 
-resample_line(line, s) = Point2.(eachcol(line2spline(line)(s)))
+points(spline, x) = Point2.(eachcol(spline(x)))
 
-resample_spline(spl, s) = ParametricSpline(s,spl(s))
+resample_line(line, s) = points( line2spline(line), s )
+
+#resample_spline(spl, s) = ParametricSpline(s,spl(s))
+# do not assume input is length-parameterized
+resample_spline(spl, s) = line2spline(eachcol(spl(s)))
 
 function find_end_indices(c::Closed2DCurve, σc = 2.0, σκ = 5.0)
     cf = imfilter(c, Kernel.gaussian((σc,)))
