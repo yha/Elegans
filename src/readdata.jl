@@ -7,7 +7,7 @@ const datadir = normpath("$(@__DIR__)/../data")
 function prefix( cameradir, datadir = datadir )
     files = readdir(joinpath( datadir, cameradir ))
     path, dir = splitdir(cameradir)
-    matches = [match( Regex(".*($(dir).*?)\\d+.mat"), f ) for f in files]
+    matches = [match( Regex(".*($(dir).*?)\\d+.mat", "i"), f ) for f in files]
     prefixes = Set( m[1] for m in matches if m !== nothing )
     length(prefixes) > 1 && error("More than one prefix in dir $(dir)")
     first(prefixes)
@@ -45,7 +45,7 @@ function video_prefix( cameradir, datadir = datadir )
     files = readdir(joinpath( datadir, cameradir ))
     path, dir = splitdir(cameradir)
     dir = chop(dir,tail=2)
-    matches = [match( Regex(".*($(dir).*?)\\d+.mp4"), f ) for f in files]
+    matches = [match( Regex("shape($(dir).*?)\\d+.mp4", "i"), f ) for f in files]
     prefixes = Set( m[1] for m in matches if m !== nothing )
     length(prefixes) > 1 && error("More than one prefix in dir $(dir)")
     first(prefixes)
@@ -81,6 +81,9 @@ function import_coords( cameradir, datadir = datadir )
     #@progress "Importing"
     for i in 0:nfiles(path_f)-1
         array = read_coords(path_f,i)
+        if size(array,1) == 2 && size(array,2) > 2
+            array = array'
+        end
         append!(x, @view array[:,1])
         append!(y, @view array[:,2])
         prev_n, n = n, length(x)
@@ -88,9 +91,9 @@ function import_coords( cameradir, datadir = datadir )
         fileno[prev_n+1:n] .= i
         push!(batch_boundaries, n)
     end
-    # (1,1) is used when worm tracking fails
-    x[isequal.(x,1)] .= missing
-    y[isequal.(y,1)] .= missing
+    # The old scripts use (1,1) when worm tracking fails. New scripts use NaN.
+    x[isequal.(x,1) .| isnan.(x)] .= missing
+    y[isequal.(y,1) .| isnan.(y)] .= missing
     df = DataFrame( fileno = fileno, x = x, y = y )
     df, batch_boundaries
 end
