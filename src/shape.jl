@@ -78,18 +78,13 @@ end
 #     out
 # end
 
-
-function contour2splines(c::Closed2DCurve)
-    i,j = find_end_indices(c)
-    contour2splines(c,(i,j))
-end
-
-function contour2splines(c::Closed2DCurve, (i, j))
+function split_curve(c::Closed2DCurve, (i,j) = find_end_indices(c))
     s = i>j
     n = length(c)
     half1, half2 = c[i:j+s*n], c[i+!s*n:-1:j]
-    spl1, spl2 = line2spline(half1), line2spline(half2)
 end
+
+contour2splines(c::Closed2DCurve, ends=find_end_indices(c)) = line2spline.(split_curve(c,ends))
 
 function swapat!(pairs, mask)
     for p in pairs[mask]
@@ -106,6 +101,15 @@ function swapat(pairs,mask)
     out
 end
 
+# split all contours along aligned ends
+function aligned_split(contours)
+    ends_i = find_end_indices.(contours)
+    ends = [c[i] for (c,i) in zip(contours,ends_i)]
+    m = ends_alignment_mask(ends)
+    ends_i_aligned = swapat(ends_i,m)
+    split_curve.(contours, ends_i_aligned)
+end
+
 splines2midline(spl1, spl2) = x -> mean.(zip(spl1(x),spl2(x)))
 
 function aligned_splines(frames, σ=1.0, th=0.34)
@@ -113,13 +117,6 @@ function aligned_splines(frames, σ=1.0, th=0.34)
     cs = [Elegans.raw_worm_contours(imfilter(fr,kern), th)
                 for fr in frames]
     cs1 = [c[1] for c in cs]
-    #plot(length.(cs1))
-    ends_i = find_end_indices.(cs1)
-    ends = [c[i] for (c,i) in zip(cs1,ends_i)]
-    m = ends_alignment_mask(ends)
-    ends_i_aligned = swapat(ends_i,m)
-    #ends1 = [c[i[1]] for (c,i) in zip(cs1,ends_i_aligned)]
-    #ends2 = [c[i[2]] for (c,i) in zip(cs1,ends_i_aligned)]
-    spl = contour2splines.(cs1, ends_i_aligned)
-    spl, cs
+    split1 = aligned_split(cs1)
+    [line2spline.(spl) for spl in split1], cs
 end
