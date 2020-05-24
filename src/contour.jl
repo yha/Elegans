@@ -5,7 +5,8 @@ using CircularArrays
 #using OffsetArrays
 using GeometryTypes
 using LinearAlgebra
-import Luxor
+#import Luxor
+using PolygonOps
 import IterTools
 import ShiftedArrays
 const cshift = ShiftedArrays.circshift
@@ -13,7 +14,7 @@ const cshift = ShiftedArrays.circshift
 # A closed 2d curve with circular indexing
 struct Closed2DCurve{T} <: AbstractVector{Point{2,T}}
     vertices::CircularVector{Point{2,T}}
-    function Closed2DCurve(v::AbstractVector{Point{2,T}}; orient_pos=false) where T
+    function Closed2DCurve{T}(v::AbstractVector{Point{2,T}}; orient_pos=false) where T
         vertices = if orient_pos && !_is_positively_oriented(v)
             v = reverse(v)
             _is_positively_oriented(v) || @warn("Failed to ensure positive orientation. Curve might be ill-conditioned.")
@@ -25,6 +26,8 @@ struct Closed2DCurve{T} <: AbstractVector{Point{2,T}}
     end
 end
 
+Closed2DCurve(v::AbstractVector{Point{2,T}}; orient_pos=false) where T = Closed2DCurve{T}(v;orient_pos=orient_pos)
+
 function Closed2DCurve( c::Contour.Curve2; orient_pos=false )
     _is_closed(c) || throw(ArgumentError("Curve not closed"))
     # Contour.Curve2 repeats the first vertex when closed.
@@ -32,15 +35,13 @@ function Closed2DCurve( c::Contour.Curve2; orient_pos=false )
     Closed2DCurve( Point.(c.vertices[1:end-1]); orient_pos=orient_pos )
 end
 vertices(c::Closed2DCurve) = c.vertices
-vertices_closed(c::Closed2DCurve) = push!(Vector(c.vertices),first(c.vertices))
+vertices_closed(c::Closed2DCurve) = c.vertices[0:length(c.vertices)]
 
 Base.size(c::Closed2DCurve) = (length(c.vertices),)
 Base.getindex(c::Closed2DCurve, i::Int) = c.vertices[i]
 
 Base.iterate(c::Closed2DCurve, state=firstindex(c.vertices)) = ( state > lastindex(c.vertices)
                 ? nothing : (c.vertices[state], state+1) )
-#Base.eltype(::Type{Closed2DCurve{T}}) where T = Point{2,T}
-#Base.IteratorSize(::Type{Closed2DCurve{T}}) where T = Base.HasLength()
 
 # This method is necessary to allow general indexing (e.g. with ranges) out of
 # the underlying vector's axes.
@@ -60,8 +61,6 @@ Images.imfilter(c::Closed2DCurve, kernel) = Closed2DCurve(_imfilter(c,kernel))
 fwddiff(a) = a .- cshift(a,-1)
 backdiff(a) = a .- cshift(a,1)
 backmean(a) = (a .+ cshift(a,1)) ./ 2
-
-#angle(p::Point2) = atan(p[2],p[1])
 
 function _curve_stats(vertices)
     dv = fwddiff(vertices)
@@ -87,51 +86,40 @@ function curvature( c::Closed2DCurve; warn_threshold=1e-3 )
     κ = dθ ./ lens_mid
 end
 
-# ##
-#
-# function _circshift(c::Curve2, shift)
-#     # remove the last vertex which repeats the first
-#     v = c.vertices[1:end-1]
-#     vs = circshift(v,shift)
-#     # close the curve by adding the first vertex as the last
-#     push!(vs,vs[1])
-# end
-# function Base.circshift!(c::Curve2, shift)
-#     c.vertices .= _circshift(c,shift)
-#     c
-# end
-# Base.circshift(c::Curve2, shift) = Curve2(_circshift(c,shift))
-# Base.reverse!(c::Curve2) = reverse!(c.vertices)
-#
-# function _circfilter(c::Curve2, kernel)
-#     v = imfilter( c.vertices[1:end-1], kernel, "circular" )
-#     push!(v,v[1])
-# end
-# circfilter(c::Curve2, kernel) = Curve2(_circfilter(c,kernel))
-# function circfilter!(c::Curve2, kernel)
-#     c.vertices .= _circfilter(c,kernel)
-#     c
-# end
-
 _is_closed(c::Curve2) = c.vertices[end] == c.vertices[1]
 
-function raw_worm_contours(img::AbstractArray{<:AbstractFloat}, level::Number)::Vector{Closed2DCurve{Float64}}
+function contour_lines( img, level )
+    y, x = float.(axes(img))
+    curves = lines(Contour.contour(x, y, img', level))
+end
+
+function closed_contour_levels(img::AbstractArray{<:AbstractFloat}, level::Number)::Vector{Closed2DCurve{Float64}}
     # Contour.contour(x,y,z) expects z to be indexed as
     # z[x[i],y[i]], contrary to the Images.jl convention img[y,x].
     # To get coordinates ordered as (x,y), we transpose img
     y, x = float.(axes(img))
     curves = lines(Contour.contour(x, y, img', level))
     curves = filter(_is_closed, curves)
-    # # Remove last repeated point (same as first since we picked only closed curves),
-    # # as well as consecutive duplicates, from each curve
-    # curves = [Point.(StatsBase.rle(curve.vertices)[1][1:end-1]) for curve in curves]
-    # filter!( !isempty, curves )
-    #filter!( c->!isempty(c.vertices), curves )
     closed_curves = Closed2DCurve.(curves; orient_pos=true)
     sort( closed_curves; by=length, rev=true )
 end
-raw_worm_contours(img::AbstractArray{<:Number}, level::Number) = raw_worm_contours(float.(img), level)
-raw_worm_contours(img::AbstractArray{<:Gray}, level) = raw_worm_contours(real.(img), real(level))
+closed_contour_levels(img::AbstractArray{<:Number}, level::Number) = closed_contour_levels(float.(img), level)
+closed_contour_levels(img::AbstractArray{<:Gray}, level) = closed_contour_levels(real.(img), real(level))
+
+abstract type ContouringMethod end
+struct Thresholding{T} <: ContouringMethod
+    σ::Float64
+    level::T
+end
+struct SeededSegmentation <: ContouringMethod
+    σ::Float64
+end
+
+raw_worm_contours( img, method::Thresholding ) = closed_contour_levels(
+                            imfilter( img, Kernel.gaussian(method.σ) ), method.level )
+raw_worm_contours( img, method::SeededSegmentation ) = bgworm_segment_closed_contours(img, method.σ)
+
+worm_contour( img, method ) = raw_worm_contours( img, method )[1]
 
 # function raw_worm_contour(img, level)
 #     curves = raw_worm_contours(img,level)
@@ -169,12 +157,14 @@ raw_worm_contours(img::AbstractArray{<:Gray}, level) = raw_worm_contours(real.(i
 
 # Curve predicates, using Luxor.jl
 
-luxorpoint(p::Luxor.Point) = p
-luxorpoint(p) = Luxor.Point(p[1],p[2])
+# luxorpoint(p::Luxor.Point) = p
+# luxorpoint(p) = Luxor.Point(p[1],p[2])
 
-function incurve( p, c::Closed2DCurve )
-    Luxor.isinside( luxorpoint(p), luxorpoint.(c); allowonedge=true )
-end
+# function incurve( p, c::Closed2DCurve )
+#     Luxor.isinside( luxorpoint(p), luxorpoint.(c); allowonedge=true )
+# end
+
+incurve( p, c::Closed2DCurve; on=true ) = inpolygon( p, vertices_closed(c); in=true, on=on, out=false )
 
 euclid_d(p,q) = norm(p-q)
 # TODO optimize

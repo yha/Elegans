@@ -1,5 +1,6 @@
 using MAT
 using VideoIO
+using Images
 
 #const datadir = "D:/"
 const datadir = normpath("$(@__DIR__)/../data")
@@ -21,7 +22,7 @@ end
 #filetypes = [(:coords, "corrd", "x_y_coor"),
 filetypes = [(:coords, "coord", "x_y_coor"),
              (:cropped, "short", "mydata"),
-             (:trace, "Trajectory", "Trace"),
+             #(:trace, "Trajectory", "Trace"),
              (:size, "WormSize", "big")]
 
 for (sym, prefix, varname) in filetypes
@@ -30,6 +31,12 @@ for (sym, prefix, varname) in filetypes
             read(file,$varname)
         end
     end
+end
+
+# read old-format cropped frames
+function readframes( path_f, idx )
+    frames = vec( read_cropped( path_f, idx ) )
+    [colorview(RGB, normedview(permuteddimsview(fr,(3,1,2)))) for fr in frames]
 end
 
 function _readall!(f, firstframe)
@@ -67,36 +74,46 @@ end
 
 nfiles(path_f) = first( i for i in Iterators.countfrom(0)
                              if !isfile(path_f("coord",i)) )
-#                             if !isfile(path_f("corrd",i)) )                                 
+#                             if !isfile(path_f("corrd",i)) )
 
 using DataFrames
 
-function import_coords( cameradir, datadir = datadir )
+function import_coords( cameradir, datadir = datadir; with_size=false )
     path_f = filepath_f(cameradir, datadir)
     x = Union{Float64,Missing}[]
     y = Union{Float64,Missing}[]
+    with_size && (sz = Union{Float64,Missing}[])
     fileno = Int[]
     batch_boundaries = Int[]
     n = 0
     #@progress "Importing"
     for i in 0:nfiles(path_f)-1
-        array = read_coords(path_f,i)
-        if size(array,1) == 2 && size(array,2) > 2
-            array = array'
+        coords = read_coords(path_f,i)
+        if size(coords,1) == 2 && size(coords,2) > 2
+            coords = coords'
         end
-        append!(x, @view array[:,1])
-        append!(y, @view array[:,2])
+        append!(x, @view coords[:,1])
+        append!(y, @view coords[:,2])
+        with_size && append!(sz, read_size(path_f,i))
         prev_n, n = n, length(x)
         resize!(fileno, n)
         fileno[prev_n+1:n] .= i
         push!(batch_boundaries, n)
     end
-    # The old scripts use (1,1) when worm tracking fails. New scripts use NaN.
-    x[isequal.(x,1) .| isnan.(x)] .= missing
-    y[isequal.(y,1) .| isnan.(y)] .= missing
+    # The old scripts use 1.0 when worm tracking fails. New scripts use NaN.
+    mark_missings(a) = a[isequal.(a,1) .| isnan.(a)] .= missing
+    mark_missings(x)
+    mark_missings(y)
+    with_size && mark_missings(sz)
+    
     df = DataFrame( fileno = fileno, x = x, y = y )
+    with_size && (df.size = sz)
     df, batch_boundaries
 end
+
+_video_index(boundaries, frameno) = 0 < frameno <= last(boundaries) ?
+                                    searchsortedfirst(boundaries,frameno) :
+                                    nothing
 
 const frames_per_s = 3
 

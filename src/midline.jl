@@ -110,7 +110,7 @@ function spline_anglevec(spl, s=0:0.025:1)
 #    θ .-= mean(θ)
 end
 
-## Line caching
+## caching
 
 # const VideoID = NamedTuple{(:path, :idx),Tuple{String,Int64}}
 #
@@ -120,29 +120,6 @@ end
 #         Elegans.read_video(Elegans.videopath_f(path),idx)
 #     end
 # end
-
-summarize_exception( e, trace ) = sprint(e, trace) do io, e, trace
-    showerror(io, e)
-    println(io)
-    show(io, MIME("text/plain"), stacktrace(trace))
-end
-
-# exc_f defaults to typeof, to keep only the type of exception:
-#  - BoundError-s on images keep a reference to the image,
-#    which makes them very large
-#  - Converting such BoundError-s directly to string is extremely
-#    slow (~1min!), so not a good option either
-function trying_cache(f, ::Type{IN}, ::Type{OUT};
-                      cache = Dict{IN,Union{OUT,DataType}}(),
-                      exc_f = (e,t)->typeof(e)) where {IN, OUT}
-    x -> get!(cache, x) do
-        try
-            f(x)
-        catch e
-            exc_f( e, catch_backtrace() )
-        end
-    end
-end
 
 using GeometryTypes
 

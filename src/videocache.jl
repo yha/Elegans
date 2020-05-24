@@ -29,3 +29,5 @@ function get_frame(cache::VideoCache, i)
 end
 
 nframes(cache::VideoCache) = cache.boundaries[end]
+
+video_index(cache::VideoCache, frame_index) = _video_index(cache.boundaries, frame_index)
