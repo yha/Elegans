@@ -24,5 +24,8 @@ include("shape.jl")
 include("peaks.jl")
 include("videocache.jl")
 include("caching.jl")
+include("headtail/forward.jl")
+include("headtail/lsr.jl")
+include("headtail/traj_stats.jl")
 
 end # module
