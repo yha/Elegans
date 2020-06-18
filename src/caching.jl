@@ -31,30 +31,34 @@ using Juno: @progress
 const default_contours_path = joinpath(datadir,"contours")
 const ContourVec = Vector{Closed2DCurve{Float64}}
 
-function frame_contours( vcache, i, g, th )
+function frame_contours( vcache, i, method )
     fr = get_frame(vcache,i)
-    c = Elegans.raw_worm_contours(imfilter(Gray.(fr),Kernel.gaussian(g)), th)
+    c = raw_worm_contours(Gray.(fr), method)
+    #c = Elegans.raw_worm_contours(imfilter(Gray.(fr),Kernel.gaussian(g)), th)
 end
 
-contour_cache( videocache, threshold, g ) = trying_cache(
-    i -> frame_contours( videocache, i, g, threshold ),
+contour_cache( videocache, method) = trying_cache(
+    i -> frame_contours( videocache, i, method ),
     Int, ContourVec;
     cache = Dict{ Int, Union{ContourVec, String} }(),
     exc_f = summarize_exception )
 
-function contours_filename(ex, root, th, g, contours_path = default_contours_path )
+contours_methodname(m::Thresholding) = "$(m.level)-$(m.σ)"
+contours_methodname(m::ContouringMethod) = string(m)
+
+function contours_filename(ex, root, method, contours_path = default_contours_path )
     rel_name = replace( relpath(ex,root),  r"[\\/]" => "-" )
-    contours_file = joinpath(contours_path,"contours-$th-$g-$rel_name.jld2")
+    m = contours_methodname(method)
+    contours_file = joinpath(contours_path,"contours-$m-$rel_name.jld2")
 end
 
-function init_contours( ex, root, th, g, contours_path = default_contours_path )
+function init_contours( ex, root, method, contours_path = default_contours_path )
     relex = replace(relpath(ex,root), "\\"=>"/")
     @info "Initializing video cache ($ex)..."
     vcache = VideoCache(relex,root)
-    contours = contour_cache(vcache,th,g)
+    contours = contour_cache(vcache,method)
 
-    #contours_file = joinpath(contours_path,"contours-$th-$g-$(replace(relex,"/"=>"-")).jld2")
-    contours_file = contours_filename( ex, root, th, g, contours_path )
+    contours_file = contours_filename( ex, root,method, contours_path )
 
     if isfile(contours_file)
         @info "Loading cached contours from $contours_file ..."
