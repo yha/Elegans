@@ -1,4 +1,6 @@
-circmean(x) = angle(mean(exp.(x.*im)))
+circres(x) = mean(exp.(x.*im))
+circmean(x) = angle(circres(x))
+circvar(v) = 1 - norm(circres(x))
 fix_angle(x) = mod(x+π,2π)-π
 m2n(a) = coalesce.(a,NaN)
 
