@@ -27,6 +27,19 @@ using JLD2
 using FileIO
 using Juno: @progress
 
+
+# # conversion methods to allow opening older JLD2 files:
+# #  - Closed2DCurve.vertices changed from Array to CircularArray
+# #  - Exceptions in contour computation now stored as strings, rather than as their types
+# #  - Moved from GeomertyTypes.Point to GeometryBasics.Point
+# Base.convert(::Type{CircularArray{T,N}}, a::AbstractArray{T,N}) where {T,N} = CircularArray(a)
+# Base.convert(::Type{String}, e::Exception) = sprint(showerror, e)
+# Base.convert(::Type{Union{Elegans.ContourVec,String}}, e::Exception) = sprint(showerror, e)
+# Base.convert(::Type{Union{Elegans.ContourVec,String}}, E::Type{<:Exception}) = string(E)
+# Base.convert(::Type{<:CircularVector{<:GeometryBasics.Point{N,T}}},
+#              a::CircularVector{GeometryTypes.Point{N,T}}) where {N,T} = CircularVector(GeometryBasics.Point.(a))
+
+
 #contours_path = "\\\\132.68.111.44\\LabData\\yharel\\contours"
 const default_contours_path = joinpath(datadir,"contours")
 const ContourVec = Vector{Closed2DCurve{Float64}}

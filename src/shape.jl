@@ -1,6 +1,6 @@
 using Dierckx
 using IterTools
-using GeometryTypes: Point2
+using GeometryBasics: Point2
 using LinearAlgebra, Statistics
 # using ResultTypes
 # using ResultTypes: unwrap

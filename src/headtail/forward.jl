@@ -1,5 +1,5 @@
 using ImageFiltering.KernelFactors: gaussian
-using GeometryTypes, LinearAlgebra
+using GeometryBasics, LinearAlgebra
 using Statistics
 using StatsBase
 using Juno: @progress

@@ -42,7 +42,7 @@ end
 ##
 
 using ImageFiltering
-using GeometryTypes
+using GeometryBasics
 centered = ImageFiltering.centered
 
 function line_ends(thin_mask)
@@ -120,9 +120,6 @@ end
 #         Elegans.read_video(Elegans.videopath_f(path),idx)
 #     end
 # end
-
-using GeometryTypes
-
 
 function midline_cache(videocache, threshold, kernel = Kernel.gaussian(1))
     trying_cache( Int, Vector{Point2{Int}} ) do idx
