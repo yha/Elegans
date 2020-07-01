@@ -43,9 +43,10 @@ using ScanDir
 const _exclude_dirs = ("\$RECYCLE.BIN", "System Volume Information")
 
 function find_exps(root; onerror=e->(showerror(stderr,e);println(stderr)))
-    alldirs = collect(ScanDir.walkdir(root; onerror=onerror))
+    alldirs = collect(ScanDir.walkdir(root; onerror=onerror,
+                                            prune = d -> d.name ∈ _exclude_dirs))
     [relpath(x.root, root) for x in alldirs
-            if !isempty(x.dirs) && startswith(x.dirs[1], "CAM")]
+            if !isempty(x.dirs) && startswith(lowercase(x.dirs[1]), "cam")]
 end
 
 function mark_stages_gui( datadir = datadir, stagefile=stages_filepath )
@@ -94,7 +95,7 @@ function mark_stages_gui( datadir = datadir, stagefile=stages_filepath )
             vbox( fmtboundaries(boundaries), begin
                 @manipulate for boundaries_txt = textbox(
                             value = fmtboundaries(something(boundaries, default_boundaries)))
-                    plt = plot( t, trace,
+                    plt = plot( t, trace, title = "$exp: $cam",
                                 xlabel="hr", ylabel="px/s", legend=false )
                     m = match(Regex("(.+?)-(.+?),\\s*"^4 * "(.+?)-?\$"), boundaries_txt)
                     if m == nothing
@@ -105,7 +106,7 @@ function mark_stages_gui( datadir = datadir, stagefile=stages_filepath )
                         new_boundaries = clamp.(something.(new_boundaries, 0), 0, life_hrs)
                         vspan!([new_boundaries;life_hrs], alpha=0.2)
                     end
-                    plot!(plt, t, zeros(length(t)), lw=4, line_z=missings, c=:RdYlGn_r )
+                    plot!(plt, t, zeros(length(t)), lw=4, line_z=missings, c=reverse(cgrad(:RdYlGn)) )
                 end; end,
                 btn
             )
