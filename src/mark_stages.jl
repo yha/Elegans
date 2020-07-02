@@ -10,8 +10,9 @@ self_ecdf(x) = ecdf(collect(skipmissing(x))).(x)
 
 using RollingFunctions
 
+const frames_per_hr = frames_per_s * 3600
+
 function _guess_stages(trace, chunksize, skip, th = 0.2, w = 50)
-    frames_per_hr = frames_per_s * 3600
     min_stage_len_hr = 2
     min_stage_len_chunks = min_stage_len_hr * frames_per_hr / chunksize
 
@@ -20,10 +21,10 @@ function _guess_stages(trace, chunksize, skip, th = 0.2, w = 50)
     d = findall(diff(j) .!= 0)
 
     if length(d) >= 9
-        b = [d[2]; d[end-7:end]]
-        stage_lens = diff(b[1:2:end])
+        b = [d[2]; mean.(partition(d[end-7:end],2)); length(trace) + w/2]
+        stage_lens = diff(b)
         minimum(stage_lens) < min_stage_len_chunks && return nothing
-        ((b .- w/2) .* chunksize .+ skip) ./ frames_per_hr
+        ((b .- w/2) .* chunksize .+ skip)
     else
         nothing
     end
@@ -33,7 +34,7 @@ function guess_stages(speed, chunksize=300, skip=10_000, th=0.2, w=50)
     _guess_stages(trace, chunksize, skip, th, w)
 end
 
-fmtboundaries(boundaries) = join(join.(Iterators.partition(boundaries,2),"-"),", ")
+fmtboundaries(boundaries) = join(boundaries ./ frames_per_hr, ", ")
 fmtboundaries(::Nothing) = "(none)"
 
 using Interact, Plots
@@ -78,8 +79,8 @@ function mark_stages_gui( datadir = datadir, stagefile=stages_filepath )
             missings = mean.(Iterators.partition(ismissing.(traj.x[skip:end]), chunksize))
             guess = _guess_stages(trace,chunksize,skip)
             default_boundaries = guess === nothing ?
-                                    [4,15,17,23,24,31,32,41,42] :
-                                    round.(guess,digits=1)
+                                    [4,16,24,32,42,58] .* frames_per_hr :
+                                    round.(guess ./ frames_per_hr, digits=1) .* frames_per_hr
 
             t = skip_hrs : chunksize/frames_per_hr : life_hrs
             sel_t = 0:0.1:round(life_hrs,digits=1)
@@ -93,18 +94,21 @@ function mark_stages_gui( datadir = datadir, stagefile=stages_filepath )
                 hm_toggle[] = hm_toggle[] # trigger reload
             end
             vbox( fmtboundaries(boundaries), begin
-                @manipulate for boundaries_txt = textbox(
+                @manipulate for boundaries_hr_txt = textbox(
                             value = fmtboundaries(something(boundaries, default_boundaries)))
                     plt = plot( t, trace, title = "$exp: $cam",
                                 xlabel="hr", ylabel="px/s", legend=false )
-                    m = match(Regex("(.+?)-(.+?),\\s*"^4 * "(.+?)-?\$"), boundaries_txt)
-                    if m == nothing
+                    hr_strings = filter(!isempty, split(boundaries_hr_txt, r"\s*,\s*"))
+                    new_boundaries_hr = tryparse.(Float64, hr_strings)
+                    if any(isnothing, new_boundaries_hr)
                         new_boundaries = nothing
                         plot!(bg="dimgray")
                     else
-                        new_boundaries = tryparse.(Float64, m.captures)
-                        new_boundaries = clamp.(something.(new_boundaries, 0), 0, life_hrs)
-                        vspan!([new_boundaries;life_hrs], alpha=0.2)
+                        new_boundaries_fl = clamp.(new_boundaries_hr .* frames_per_hr, 0, nrow(traj))
+                        new_boundaries = round.(Int,new_boundaries_fl)
+                        @assert maximum(abs.(new_boundaries .- new_boundaries_fl)) < 0.001
+                        #@show new_boundaries new_boundaries_hr
+                        vline!(new_boundaries_hr)
                     end
                     plot!(plt, t, zeros(length(t)), lw=4, line_z=missings, c=reverse(cgrad(:RdYlGn)) )
                 end; end,
