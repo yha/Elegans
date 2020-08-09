@@ -68,6 +68,7 @@ function mark_stages_gui( datadir = datadir, stagefile=stages_filepath )
     ui = pad(2em, vbox( hbox(exp_dd, cam_dd, hm_toggle), map(cam_dd) do cam
         try
             exp = exp_dd[]
+            @info "loading stages and trajectory for $exp: $cam"
             traj = import_and_calc(cam, 3, joinpath(datadir,exp_dd[]))
             skip = 10_000
             chunksize = 300
@@ -91,7 +92,8 @@ function mark_stages_gui( datadir = datadir, stagefile=stages_filepath )
                 TOML.print( stdout, Dict(exp => Dict(cam => new_boundaries)) )
                 stages[exp][cam] = new_boundaries
                 savestages(stages, stagefile)
-                hm_toggle[] = hm_toggle[] # trigger reload
+                @info "saved" exp=>(cam=>new_boundaries)
+                cam_dd[] = cam_dd[] # trigger reload
             end
             vbox( fmtboundaries(boundaries), begin
                 @manipulate for boundaries_hr_txt = textbox(
