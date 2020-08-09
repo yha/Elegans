@@ -12,6 +12,7 @@ export import_coords, import_and_calc, loadstages, stage_names,
        anglevec_by_thinning, midline_cache, spline_cache, points,
        ends_alignment_mask, align_ends!, find_end_indices,
        contour2splines, aligned_splines,
+       end_trajectories, end_assignment_segments,
        forward_speed, speed_heatmap, speed_heatmap_data, speed_heatmap_plot,
        log_speed_ratios,
        # TODO move to a new packge?
@@ -26,6 +27,7 @@ include("shape.jl")
 include("peaks.jl")
 include("videocache.jl")
 include("caching.jl")
+include("end_trajs.jl")
 include("headtail/forward.jl")
 include("headtail/lsr.jl")
 include("headtail/traj_stats.jl")
