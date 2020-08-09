@@ -75,6 +75,7 @@ function spread!(out,in,mask,miss=missing)
             out[k] = miss
         end
     end
+    i < lastindex(in) && error("mask too short ($i < $(lastindex(in)))")
     out
 end
 spread(x,mask,miss=missing) = spread!(similar(mask,Union{eltype(x),typeof(miss)}),x,mask,miss)
