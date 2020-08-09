@@ -15,6 +15,7 @@ export import_coords, import_and_calc, loadstages, stage_names,
        end_trajectories, end_assignment_segments,
        forward_speed, speed_heatmap, speed_heatmap_data, speed_heatmap_plot,
        log_speed_ratios,
+       speed_stats, direction_stats, spread_stats,
        # TODO move to a new packge?
        try_return, passex, missex
 
