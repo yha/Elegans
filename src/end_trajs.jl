@@ -1,8 +1,10 @@
 using OffsetArrays
 using GeometryBasics
 
-#const missingpoint = Point(missing, missing)
-const nanpoint = Point(NaN, NaN)
+# TODO: missingpoints can be changed from NaN to missing when ImageFiltering
+#       supports missing values.
+const missingpoint = Point(NaN, NaN)
+ismissingpoint(p) = all(isnan,p)
 
 
 # trajectories of worm ends end center in "global" coordinates
@@ -35,8 +37,8 @@ function end_trajectories( traj, contours, irange, midframe )
     e_ok1 = [first(s[1]) for s in splits_ok]
     e_ok2 = [last(s[1]) for s in splits_ok]
 
-    e1 = spread( e_ok1, ends_found, nanpoint )
-    e2 = spread( e_ok2, ends_found, nanpoint )
+    e1 = spread( e_ok1, ends_found, missingpoint )
+    e2 = spread( e_ok2, ends_found, missingpoint )
     #d = e2 - e1
 
     # @progress "splines" splines_ok =
