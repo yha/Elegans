@@ -163,7 +163,8 @@ function contour_cache_aligned_split(contours_f, i)
     OffsetArray(splits,i), OffsetArray(ratios,i)
 end
 
-splines2midline(spl1, spl2) = x -> mean.(zip(spl1(x),spl2(x)))
+splines2midline(spl1, spl2) = x -> splines2midpoint.(Ref(spl1), Ref(spl2), x)
+splines2midpoint(spl1, spl2, x) = mean((spl1(x),spl2(x)))
 
 
 # function contour_cache_aligned_split(contours_f, i)
