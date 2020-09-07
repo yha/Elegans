@@ -27,8 +27,7 @@ function get_stage_boundaries( camname, stages_path, file_boundaries )
     file_boundaries[Int(file_start)-1] .+ Int.(stage_boundaries)[1,:]
 end
 
-function getstages!( ex, cam, stages_path, file_boundaries )
-    allstages = loadstages()
+function getstages!( ex, cam, stages_path, file_boundaries, allstages=loadstages() )
     camstages = get!( get!( allstages, ex, Dict() ), cam, nothing )
     if camstages === nothing
         @info "retrieving and storing stages for $ex/$cam from $stages_path"
