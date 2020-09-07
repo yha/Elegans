@@ -1,7 +1,7 @@
 name = "Elegans"
 uuid = "27ab0b70-9e64-11e9-288f-a5d350afe8a8"
 authors = ["yha <yharel@campus.technion.ac.il>"]
-version = "0.1.0"
+version = "0.2.0"
 
 [deps]
 Blink = "ad839575-38b3-5650-b840-f874b8c74a25"

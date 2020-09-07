@@ -59,10 +59,10 @@ contour_cache( videocache, method) = trying_cache(
 contours_methodname(m::Thresholding) = "$(m.level)-$(m.σ)"
 contours_methodname(m::ContouringMethod) = string(m)
 
-function contours_filename(ex, root, method, contours_path = default_contours_path )
-    rel_name = replace( relpath(ex,root),  r"[\\/]" => "-" )
+function contours_filename(cam, method, contours_path = default_contours_path )
+    camname = replace( cam,  r"[\\/]" => "-" )
     m = contours_methodname(method)
-    contours_file = joinpath(contours_path,"contours-$m-$rel_name.jld2")
+    contours_file = joinpath(contours_path,"contours-$m-$camname.jld2")
 end
 
 function load_contours( contours_file, vcache )
@@ -90,13 +90,12 @@ function load_contours( contours_file, vcache )
     stored_contours
 end
 
-function init_contours( campath, root, method, contours_path = default_contours_path )
-    relcam = replace(relpath(campath,root), "\\"=>"/")
-    @info "Initializing video cache ($campath)..."
-    vcache = VideoCache(relcam,root)
+function init_contours( cam, root, method, contours_path = default_contours_path )
+    @info "Initializing video cache ($(joinpath(root, cam)))..."
+    vcache = VideoCache(cam,root)
     contours = contour_cache(vcache,method)
 
-    contours_file = contours_filename( campath, root, method, contours_path )
+    contours_file = contours_filename( cam, method, contours_path )
 
     if isfile(contours_file)
         stored_contours = load_contours( contours_file, vcache )
