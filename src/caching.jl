@@ -45,7 +45,7 @@ const default_contours_path = joinpath(datadir,"contours")
 const ContourVec = Vector{Closed2DCurve{Float64}}
 
 function frame_contours( vcache, i, method )
-    fr = get_frame(vcache,i)
+    fr = centered(get_frame(vcache,i))
     c = raw_worm_contours(Gray.(fr), method)
     #c = Elegans.raw_worm_contours(imfilter(Gray.(fr),Kernel.gaussian(g)), th)
 end

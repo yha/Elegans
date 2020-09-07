@@ -13,6 +13,7 @@ export import_coords, import_and_calc, loadstages, stage_names,
        ends_alignment_mask, align_ends!, find_end_indices,
        contour2splines, aligned_splines,
        end_trajectories, end_assignment_segments,
+       end_trajectories, end_assignment_segments, headtail_trajectories,
        forward_speed, speed_heatmap, speed_heatmap_data, speed_heatmap_plot,
        log_speed_ratios,
        speed_stats, direction_stats, spread_stats,
@@ -32,5 +33,7 @@ include("end_trajs.jl")
 include("headtail/forward.jl")
 include("headtail/lsr.jl")
 include("headtail/traj_stats.jl")
+include("headtail/headtail_traj.jl")
+
 
 end # module

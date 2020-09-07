@@ -79,3 +79,27 @@ end
 #     ldvr = bounded_log_ratio.( c1, c2 )
 #     ldvr, c1, c2, c_c
 # end
+
+##
+
+abstract type HeadTailClassificationMethod end
+
+struct SpeedHTCM{T,S} <: HeadTailClassificationMethod
+    t::T
+    s::S
+end
+struct SpreadHTCM{S} <: HeadTailClassificationMethod
+    winlen::Int
+    s::S
+    mindet::Float64
+end
+SpreadHTCM( winlen, s ) = SpreadHTCM( winlen, s, 1e-12 )
+struct DirectionHTCM{T,S} <: HeadTailClassificationMethod
+    winlen::Int
+    t::T
+    s::S
+end
+
+headtail_stats( m::SpeedHTCM, e1, e2, center ) = speed_stats( e1, e2, center, m.t, m.s )
+headtail_stats( m::SpreadHTCM, e1, e2, center ) = spread_stats( e1, e2, center, m.winlen, m.s, m.mindet )
+headtail_stats( m::DirectionHTCM, e1, e2, center ) =  direction_stats(e1, e2, center, m.t, m.winlen, m.s)
