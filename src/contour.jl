@@ -7,6 +7,7 @@ using GeometryBasics
 using LinearAlgebra
 #import Luxor
 using PolygonOps
+using OffsetArrays: no_offset_view
 import IterTools
 import ShiftedArrays
 const cshift = ShiftedArrays.circshift
@@ -94,6 +95,10 @@ function contour_lines( img, level )
 end
 
 function closed_contour_levels(img::AbstractArray{<:AbstractFloat}, level::Number)::Vector{Closed2DCurve{Float64}}
+    # Contour.contour does not support offset arrays, so keep and strip offsets
+    # TODO: remove when offset arrays are directly supported
+    offsets = first.(axes(img)) .-1
+    img = no_offset_view(img)
     # Contour.contour(x,y,z) expects z to be indexed as
     # z[x[i],y[i]], contrary to the Images.jl convention img[y,x].
     # To get coordinates ordered as (x,y), we transpose img
@@ -101,6 +106,7 @@ function closed_contour_levels(img::AbstractArray{<:AbstractFloat}, level::Numbe
     curves = lines(Contour.contour(x, y, img', level))
     curves = filter(_is_closed, curves)
     closed_curves = Closed2DCurve.(curves; orient_pos=true)
+    closed_curves = [Closed2DCurve(c .+ Point2(offsets)) for c in closed_curves]
     sort( closed_curves; by=length, rev=true )
 end
 closed_contour_levels(img::AbstractArray{<:Number}, level::Number) = closed_contour_levels(float.(img), level)
@@ -115,8 +121,11 @@ struct SeededSegmentation <: ContouringMethod
     σ::Float64
 end
 
+iscentered(a) = all(first(i) == -last(i) for i in axes(a))
+assertcentered(a) = (@assert iscentered(a); a)
+
 raw_worm_contours( img, method::Thresholding ) = closed_contour_levels(
-                            imfilter( img, Kernel.gaussian(method.σ) ), method.level )
+                            imfilter( assertcentered(img), Kernel.gaussian(method.σ) ), method.level )
 raw_worm_contours( img, method::SeededSegmentation ) = bgworm_segment_closed_contours(img, method.σ)
 
 worm_contour( img, method ) = raw_worm_contours( img, method )[1]

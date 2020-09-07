@@ -65,20 +65,42 @@ function contours_filename(ex, root, method, contours_path = default_contours_pa
     contours_file = joinpath(contours_path,"contours-$m-$rel_name.jld2")
 end
 
-function init_contours( ex, root, method, contours_path = default_contours_path )
-    relex = replace(relpath(ex,root), "\\"=>"/")
-    @info "Initializing video cache ($ex)..."
-    vcache = VideoCache(relex,root)
+function load_contours( contours_file, vcache )
+    @info "Loading cached contours from $contours_file ..."
+    @time d = load(contours_file)
+    stored_contours = get(d, "contours", nothing)
+    if stored_contours === nothing
+        # try older format, which has uncentered contours
+        @info "... centering contours ..."
+        raw_contours = d["contours.cache"]
+        m, n = size(get_frame(vcache, 1))
+        midframe = Point2(m÷2+1, n÷2+1)
+        # center contours
+        @time stored_contours = Dict{Int,valtype(raw_contours)}(
+            Base.Generator(raw_contours) do (i,c)
+                if c isa AbstractVector # successful frame
+                    i => [Closed2DCurve(c.-midframe) for c in raw_contours[i]]
+                else
+                    i => c
+                end
+            end)
+    end
+    n, n_err = length(stored_contours), count((!isa).(values(stored_contours),Vector))
+    @info "... $(n-n_err) contours loaded ($n_err errors)"
+    stored_contours
+end
+
+function init_contours( campath, root, method, contours_path = default_contours_path )
+    relcam = replace(relpath(campath,root), "\\"=>"/")
+    @info "Initializing video cache ($campath)..."
+    vcache = VideoCache(relcam,root)
     contours = contour_cache(vcache,method)
 
-    contours_file = contours_filename( ex, root,method, contours_path )
+    contours_file = contours_filename( campath, root, method, contours_path )
 
     if isfile(contours_file)
-        @info "Loading cached contours from $contours_file ..."
-        stored_contours = load(contours_file, "contours.cache")
+        stored_contours = load_contours( contours_file, vcache )
         merge!(contours.cache, stored_contours)
-        n, n_err = length(stored_contours), count((!isa).(values(stored_contours),Vector))
-        @info "... $(n-n_err) contours loaded ($n_err errors)"
     end
     contours, contours_file, vcache
 end

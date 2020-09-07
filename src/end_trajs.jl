@@ -9,7 +9,7 @@ ismissingpoint(p) = all(isnan,p)
 
 # trajectories of worm ends end center in "global" coordinates
 # (coordinates used in `traj`).
-function end_trajectories( traj, contours, irange, midframe )
+function end_trajectories( traj, contours, irange )
     # split contours in frame coordinates
     splits_fr, ratios = contour_cache_aligned_split(contours, irange)
     ends_found = .!ismissing.(ratios)
@@ -22,13 +22,12 @@ function end_trajectories( traj, contours, irange, midframe )
     miss2nan(x) = replace(x, missing=>NaN)
     x, y = miss2nan( traj.x[irange]), miss2nan(traj.y[irange] )
     center = OffsetArray( Point.(x, y), irange )
-    shift = center .- [midframe]
-    shift_ok = shift[ends_found]
+    center_ok = center[ends_found]
 
     # split contours in "global" coordinates
     #@show shift_ok[begin] splits_fr_ok[begin]
     #@show axes(shift_ok,1) axes(splits_fr_ok,1)
-    splits_ok = [(c1 .+ s, c2 .+ s) for ((c1,c2),s) in zip(splits_fr_ok, shift_ok)]
+    splits_ok = [(c1 .+ p, c2 .+ p) for ((c1,c2),p) in zip(splits_fr_ok, center_ok)]
 
     splits = spread( splits_ok, ends_found )
 
