@@ -245,13 +245,3 @@ using GeometryBasics: Point
 # @recipe f(c::Curve2) = Point.(c.vertices)
 @recipe f(c::Closed2DCurve) = vertices_closed(c)
 #@recipe f(::Type{<:Closed2DCurve}, ::Closed2DCurve) = (vertices_closed, identity)
-
-
-# TODO remove when these Recipes are in Plots or some other package
-@recipe f(v::AbstractVector{<:Point}) = Plots.RecipesPipeline.unzip(v)
-@recipe f(p::Point) = [p]
-for i in 2:4
-    @eval begin
-        Plots.RecipesPipeline.unzip(v::AbstractVector{<:Point{$i}}) = $(Expr(:tuple, (:([t[$j] for t in v]) for j=1:i)...))
-    end
-end
