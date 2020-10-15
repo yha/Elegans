@@ -7,12 +7,12 @@ export import_coords, import_and_calc, loadstages, stage_names,
        Thresholding, SeededSegmentation,
        incurve, cutline, joincurves,
        Closed2DCurve, n_highest_peaks_circular,
-       contour_cache, init_contours,
+       contour_cache, init_contours, save_contours,
        midline_by_thinning, line2spline, resample_spline, spline_anglevec,
        anglevec_by_thinning, midline_cache, spline_cache, points,
        ends_alignment_mask, align_ends!, find_end_indices,
        contour2splines, aligned_splines,
-       end_trajectories, end_assignment_segments,
+       isroaming, roam_for_stage,
        end_trajectories, end_assignment_segments, headtail_trajectories,
        forward_speed, speed_heatmap, speed_heatmap_data, speed_heatmap_plot,
        log_speed_ratios,
@@ -30,6 +30,7 @@ include("peaks.jl")
 include("videocache.jl")
 include("caching.jl")
 include("end_trajs.jl")
+include("roam_fraction.jl")
 include("headtail/forward.jl")
 include("headtail/lsr.jl")
 include("headtail/traj_stats.jl")
