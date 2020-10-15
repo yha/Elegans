@@ -19,6 +19,7 @@ export import_coords, import_and_calc, loadstages, stage_names,
        forward_speed, speed_heatmap, speed_heatmap_data, speed_heatmap_plot,
        log_speed_ratios,
        speed_stats, direction_stats, spread_stats,
+       plot_frame_with_time,
        # TODO move to a new packge?
        try_return, passex, missex
 
@@ -33,6 +34,7 @@ include("videocache.jl")
 include("caching.jl")
 include("end_trajs.jl")
 include("roam_fraction.jl")
+include("video_output.jl")
 include("headtail/forward.jl")
 include("headtail/lsr.jl")
 include("headtail/traj_stats.jl")
