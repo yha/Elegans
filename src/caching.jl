@@ -113,3 +113,53 @@ function compute_all_contours( ex, root, th, g, contours_path = default_contours
     @progress "computing contours" cont = [contours(i) for i = 1:nframes(vcache)]
     contours, contours_file, vcache
 end
+
+## Midpoints cache
+
+const default_midpoints_path = joinpath(datadir,"midpoints")
+
+as_tuple(x::T) where T = NamedTuple{fieldnames(T)}(tuple((getfield(x,i) for i in 1:fieldcount(T))...))
+
+function midpoints_filename( cam, t=0:0.025:1; midpoints_path=default_midpoints_path,
+        contour_method, headtail_method, end_assignment_params )
+    camname = replace( cam,  r"[\\/]" => "-" )
+    cm = contours_methodname(contour_method)
+    m = as_tuple(headtail_method)
+    p = as_tuple(end_assignment_params)
+    contours_file = joinpath(midpoints_path,"midpoints-$camname $cm $m $p.jld2")
+end
+
+save_midpoints(midpts, filename) = save(filename, Dict("midpoints"=>midpts.cache))
+
+const MaybePoint2F = Union{Missing, Point2{Float64}}
+const Midpoints = OffsetArray{MaybePoint2F,2,Matrix{MaybePoint2F}}
+midpoint_cache( traj, contours, t=0:0.025:1;
+                headtail_method=SpeedHTCM(5,0), end_assignment_params=EndAssigmentParams()
+              ) = trying_cache(
+        irange -> range_midpoints( traj, contours, irange, t, headtail_method, end_assignment_params  ),
+        UnitRange, Midpoints)
+
+
+function load_midpoints( midpoints_file )
+    @info "Loading cached midpoints from $midpoints_file ..."
+    @time d = load(midpoints_file)
+    stored_midpoints = d["midpoints"]
+    n, n_err = length(stored_midpoints), count((!isa).(values(stored_midpoints),Midpoints))
+    @info "... midpoints for $(n-n_err) stages loaded ($n_err errors)"
+    stored_midpoints
+end
+
+
+# TODO have contour_method stored with contours
+function init_midpoints( cam, traj, contours, t=0:0.025:1, midpoints_path = default_midpoints_path;
+                        contour_method, headtail_method=SpeedHTCM(5,0), end_assignment_params=EndAssigmentParams() )
+    mids = midpoint_cache(traj, contours, t; headtail_method, end_assignment_params)
+
+    midpoints_file = midpoints_filename( cam, t; contour_method, headtail_method, end_assignment_params )
+
+    if isfile(midpoints_file)
+        stored_midpoints = load_midpoints( midpoints_file )
+        merge!(mids.cache, stored_midpoints)
+    end
+    mids, midpoints_file
+end
