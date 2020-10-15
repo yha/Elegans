@@ -104,7 +104,9 @@ function init_contours( cam, root, method, contours_path = default_contours_path
     contours, contours_file, vcache
 end
 
-save_contours(contours, contours_file) = @save contours_file contours.cache
+# TODO use `@save` macro when keyword syntax is supported (next version of JLD2: PR #198):
+# @save contours_file contours=contours.cache
+save_contours(contours, contours_file) = save(contours_file, Dict("contours"=>contours.cache))
 
 function compute_all_contours( ex, root, th, g, contours_path = default_contours_path )
     contours, contours_file, vcache = init_contours(ex, root, th, g, contours_path)
