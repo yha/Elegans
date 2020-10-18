@@ -133,11 +133,14 @@ save_midpoints(midpts, filename) = save(filename, Dict("midpoints"=>midpts.cache
 
 const MaybePoint2F = Union{Missing, Point2{Float64}}
 const Midpoints = OffsetArray{MaybePoint2F,2,Matrix{MaybePoint2F}}
-midpoint_cache( traj, contours, t=0:0.025:1;
-                headtail_method=SpeedHTCM(5,0), end_assignment_params=EndAssigmentParams()
-              ) = trying_cache(
-        irange -> range_midpoints( traj, contours, irange, t, headtail_method, end_assignment_params  ),
-        UnitRange, Midpoints)
+
+function midpoint_cache( traj, contours, t=0:0.025:1;
+                headtail_method=SpeedHTCM(5,0), end_assignment_params=EndAssigmentParams())
+    cache = Dict{UnitRange,Midpoints}()
+    irange -> get!(cache,irange) do
+        range_midpoints( traj, contours, irange, t, headtail_method, end_assignment_params  )
+    end
+end
 
 
 function load_midpoints( midpoints_file )
