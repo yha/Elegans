@@ -7,8 +7,10 @@ const missingpoint = Point(NaN, NaN)
 ismissingpoint(p) = all(isnan,p)
 
 
-# trajectories of worm ends end center in "global" coordinates
+# trajectories of worm ends and center in "global" coordinates
 # (coordinates used in `traj`).
+# TODO exceptions recorded by `contour_cache_aligned_split` are not preserved
+# here (replaced by `missing`)
 function end_trajectories( traj, contours, irange )
     # split contours in frame coordinates
     splits_fr, ratios = contour_cache_aligned_split(contours, irange)
