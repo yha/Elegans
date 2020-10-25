@@ -25,7 +25,7 @@ function line2spline(line, th=0.01)
     A = reduce(hcat, line)
 
     # output spline is approximately length-parameterized
-    spl = ParametricSpline(s,A)
+    spl = ParametricSpline(s, A; k = min(3,length(s)-1))
 end
 
 points(spline, x) = Point2.(eachcol(spline(x)))
