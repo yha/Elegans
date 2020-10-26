@@ -120,13 +120,13 @@ const default_midpoints_path = joinpath(datadir,"midpoints")
 
 as_tuple(x::T) where T = NamedTuple{fieldnames(T)}(tuple((getfield(x,i) for i in 1:fieldcount(T))...))
 
-function midpoints_filename( cam, t=0:0.025:1; midpoints_path=default_midpoints_path,
+function midpoints_filename( ex, cam, t=0:0.025:1; midpoints_path=default_midpoints_path,
         contour_method, headtail_method, end_assignment_params )
     camname = replace( cam,  r"[\\/]" => "-" )
     cm = contours_methodname(contour_method)
     m = as_tuple(headtail_method)
     p = as_tuple(end_assignment_params)
-    contours_file = joinpath(midpoints_path,"midpoints-$camname $cm $m $p.jld2")
+    contours_file = joinpath(midpoints_path,"midpoints-$ex-$camname $cm $m $p.jld2")
 end
 
 save_midpoints(midpts, filename) = save(filename, Dict("midpoints"=>midpts.cache))
@@ -154,11 +154,11 @@ end
 
 
 # TODO have contour_method stored with contours
-function init_midpoints( cam, traj, contours, t=0:0.025:1, midpoints_path = default_midpoints_path;
+function init_midpoints( ex, cam, traj, contours, t=0:0.025:1, midpoints_path = default_midpoints_path;
                         contour_method, headtail_method=SpeedHTCM(5,0), end_assignment_params=EndAssigmentParams() )
     mids = midpoint_cache(traj, contours, t; headtail_method, end_assignment_params)
 
-    midpoints_file = midpoints_filename( cam, t; contour_method, headtail_method, end_assignment_params )
+    midpoints_file = midpoints_filename( ex, cam, t; contour_method, headtail_method, end_assignment_params )
 
     if isfile(midpoints_file)
         stored_midpoints = load_midpoints( midpoints_file )
