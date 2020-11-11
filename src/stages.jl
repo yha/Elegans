@@ -1,9 +1,15 @@
 using TOML
+using AtomicFileWrite
+using DataStructures
 
 const stage_names = ["L1", "L2", "L3", "L4", "A"]
 const stages_filepath = normpath("$(@__DIR__)/../stages.toml")
+
+sortedstages(stages) = SortedDict(k=>SortedDict(v) for (k,v) in pairs(stages))
 loadstages(stagefile=stages_filepath) = TOML.parsefile(stagefile)
-savestages(stages, stagefile=stages_filepath) = open( io->TOML.print(io,stages), stagefile, "w" )
+savestages(stages, stagefile=stages_filepath) = atomic_write( stagefile ) do io
+    TOML.print(io, sortedstages(stages))
+end
 #appendstages(stages...) = open( io->TOML.print(io,Dict(stages)), stages_filepath, "a" )
 
 
