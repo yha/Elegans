@@ -43,7 +43,12 @@ function get_stage_boundaries_old_fmt( camname, mat_path, file_boundaries )
             read(file, "coord_$stage_name")
         end
         start_video, start_frame = Int(mat_data[1,1]), Int(mat_data[1,2])
-        end_video, end_frame = Int(mat_data[end,1]), Int(mat_data[end,2])
+        # Old scripts sometimes produce extra rows filled with zeros when the
+        # adult stage is "too short" (<16hr).
+        # Zero in the video number is always a mistake, so find the last
+        # non-zero there to locate the actual last frame.
+        last_frame_index = findlast( i -> mat_data[i,1] != 0, 1:size(mat_data,1) )
+        end_video, end_frame = Int(mat_data[last_frame_index,1]), Int(mat_data[last_frame_index,2])
         stage_starts[i] = file_boundaries[start_video-1] + start_frame
         stage_ends[i] = file_boundaries[end_video-1] + end_frame
     end
