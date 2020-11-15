@@ -4,6 +4,7 @@ authors = ["yha <yharel@campus.technion.ac.il>"]
 version = "0.2.0"
 
 [deps]
+AtomicFileWrite = "f119f125-4b25-46d8-b5f3-95ec5c404bfa"
 Blink = "ad839575-38b3-5650-b840-f874b8c74a25"
 CircularArrays = "7a955b69-7140-5f4e-a0ed-f168c5e2e749"
 Contour = "d38c429a-6771-53c6-b99e-75d170b6e991"
