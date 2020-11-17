@@ -142,9 +142,11 @@ function range_midpoints( traj, contours, irange, t=0:0.025:1,
     @info "Locating head and tail..."
     head, tail, splits_ht, conf = headtail_trajectories( traj, contours, irange, headtail_method, end_assigment_params )
     @info "Creating contour splines..."
-    # TODO this @progress reqires Juno.jl unmerged PR #605
-    @progress "splines" splines = [passmissing(line2spline).(spl) for spl in splits_ht]
-    firstindex(splines) == 1 && error("Juno.@progress lost array offsets") # Juno should be updated or @progress removed
+    # # TODO this @progress reqires Juno.jl unmerged PR #605
+    # @progress "splines" splines = [passmissing(line2spline).(spl) for spl in splits_ht]
+    # firstindex(splines) == 1 && error("Juno.@progress lost array offsets") # Juno should be updated or @progress removed
+    # alternative:
+    @time splines = [passmissing(line2spline).(spl) for spl in splits_ht]
 
     @info "Find midpoints..."
     @progress "midpoints" midpts = [passmissing(_mid)(splines[i],t) for i in irange, t in t]
