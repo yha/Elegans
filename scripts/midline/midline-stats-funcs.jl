@@ -15,7 +15,7 @@ using Missings, NaNMath
 
 ##
 
-function load_cam(root, ex, cam, contour_method=Thresholding(1.0,0.34))
+function load_cam(root, ex, cam, contours_path, midpoints_path, contour_method=Thresholding(1.0,0.34))
     relcam = joinpath(ex, cam)
     campath = joinpath(root, relcam)
     @assert isdir(campath)
@@ -25,7 +25,7 @@ function load_cam(root, ex, cam, contour_method=Thresholding(1.0,0.34))
 
     traj = import_and_calc(relcam, 3, root)
 
-    mids, midfile = Elegans.init_midpoints(ex, cam, traj, contours; contour_method)
+    mids, midfile = Elegans.init_midpoints(ex, cam, traj, contours, midpoints_path; contour_method)
 
     (;traj, contours, mids, vcache, contours_file, midfile)
 end
