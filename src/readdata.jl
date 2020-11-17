@@ -10,7 +10,7 @@ function prefix( cameradir, datadir = datadir )
     path, dir = splitdir(cameradir)
     matches = [match( Regex(".*($(dir).*?)\\d+.mat", "i"), f ) for f in files]
     prefixes = Set( m[1] for m in matches if m !== nothing )
-    length(prefixes) > 1 && error("More than one prefix in dir $(dir)")
+    length(prefixes) > 1 && error("More than one prefix in dir $(dir). Prefixes:\n$(join(prefixes,"\n"))")
     first(prefixes)
 end
 
