@@ -81,8 +81,8 @@ function allvars_hm( vars, t, windows, isroam, summ_str )
     #plot!(hm, [0.5, 0.5], [3.5e5, 4e5], lz=[100,200], colorbar_entry=false)
     plot!(  hm, fill(0.5,size(windows)), first.(windows), label="",
             lz=log10.(midvars), colorbar_entry=false, c=:grays, lw=2 )
-    hline!(filter(i->coalesce(isroam[i],false),
-                    first.(windows)), ls=:dot, lc="black", lw=2, label="")
+    roamwins = filter(win->any(coalesce.(isroam[win],false)), windows)
+    isempty(roamwins) || hline!(first.(roamwins), ls=:dot, lc="black", lw=2, label="")
     plot( #plot(midvars, first.(windows), xscale=:log10, legend=false, xflip=true),
           plot(log10.(midvars), first.(windows), legend=false, xflip=true),
           hm,
