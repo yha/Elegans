@@ -25,7 +25,7 @@ function load_cam(root, ex, cam, contours_path, midpoints_path, contour_method=T
 
     traj = import_and_calc(relcam, 3, root)
 
-    mids, midfile = Elegans.init_midpoints(ex, cam, traj, contours, midpoints_path; contour_method)
+    mids, midfile = Elegans.init_midpoints(ex, cam, traj, contours; contour_method, midpoints_path)
 
     (;traj, contours, mids, vcache, contours_file, midfile)
 end

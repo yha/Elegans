@@ -154,11 +154,12 @@ end
 
 
 # TODO have contour_method stored with contours
-function init_midpoints( ex, cam, traj, contours, t=0:0.025:1, midpoints_path = default_midpoints_path;
-                        contour_method, headtail_method=SpeedHTCM(5,0), end_assignment_params=EndAssigmentParams() )
+function init_midpoints( ex, cam, traj, contours, t=0:0.025:1;
+                        contour_method, midpoints_path = default_midpoints_path,
+                        headtail_method=SpeedHTCM(5,0), end_assignment_params=EndAssigmentParams() )
     mids = midpoint_cache(traj, contours, t; headtail_method, end_assignment_params)
 
-    midpoints_file = midpoints_filename( ex, cam, t; contour_method, headtail_method, end_assignment_params )
+    midpoints_file = midpoints_filename( ex, cam, t; midpoints_path, contour_method, headtail_method, end_assignment_params )
 
     if isfile(midpoints_file)
         stored_midpoints = load_midpoints( midpoints_file )
