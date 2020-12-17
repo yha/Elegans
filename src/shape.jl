@@ -6,8 +6,7 @@ using LinearAlgebra, Statistics
 # using ResultTypes: unwrap
 using StaticArrays
 using OffsetArrays
-# TODO Move from Juno.@progress to ProgressLogging.jl when it's ready
-using Juno: @progress
+using ProgressLogging: @progress
 
 merge_nearby_points(line, th=0.01) = IterTools.imap( mean,
                                 group_pairwise( (x,y) -> norm(x-y)<th, line ) )

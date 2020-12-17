@@ -2,7 +2,7 @@ using ImageFiltering.KernelFactors: gaussian
 using GeometryBasics, LinearAlgebra
 using Statistics
 using StatsBase
-using Juno: @progress
+using ProgressLogging: @progress
 
 function forward_speed(x, y, d, k)
     @assert length(x) == length(y) == length(d) + 1

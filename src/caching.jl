@@ -25,7 +25,7 @@ end
 
 using JLD2
 using FileIO
-using Juno: @progress
+using ProgressLogging: @progress
 
 
 # # conversion methods to allow opening older JLD2 files:
