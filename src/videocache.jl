@@ -18,7 +18,7 @@ function get_frame(cache::VideoCache, i)
     file_offset = fileno == 0 ? 0 : cache.boundaries[fileno]
     # @show (fileno,i-file_offset)
     frames = get!(cache.cache, fileno) do
-        println("Reading file $fileno")
+        @info "Reading file $fileno" _group=:videoread
         Elegans.read_video( cache.path_f, fileno )
     end
     frame = frames[i-file_offset]
