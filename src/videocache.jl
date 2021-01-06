@@ -30,4 +30,6 @@ end
 
 nframes(cache::VideoCache) = cache.boundaries[end]
 
+isframeready(cache::VideoCache, frame_index) = video_index(cache, frame_index) ∈ cache.cache.keyset
+
 video_index(cache::VideoCache, frame_index) = _video_index(cache.boundaries, frame_index)
