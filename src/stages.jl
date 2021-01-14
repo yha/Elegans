@@ -12,6 +12,10 @@ savestages(stages, stagefile=stages_filepath) = atomic_write( stagefile ) do io
 end
 #appendstages(stages...) = open( io->TOML.print(io,Dict(stages)), stages_filepath, "a" )
 
+function stage_frames( ex, cam, stage_i; stagedict=loadstages() )
+    stage_boundaries = stagedict[ex][cam]
+    return stage_boundaries[stage_i]+1:stage_boundaries[stage_i+1]
+end
 
 ## Loading of stages saved by MATLAB script (separate_to_developmental_stages.m)
 

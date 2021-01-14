@@ -60,10 +60,10 @@ midpoints_path = "U:/cached-data/midpoints"
 
 root = "E:/eshkar"
 ex = "Results_090220_EN00021_2nd_new"
-allstages = loadstages()
 
-cams = sort!(collect(keys(allstages[ex])))[1:4]
+stagedict = loadstages()
 
+cams = sort!(collect(keys(stagedict[ex])))
 exname = match(r"(^|_)\d{6}_(\w\w\d{5})($|_)", ex).captures[2]
 #_vcache = VideoCache(joinpath(ex,cams[1]),root)
 #get_frame(_vcache, 700000)
@@ -81,8 +81,9 @@ end
 ##
 using Unzip
 
-function make_cam_data(cam, stages_i; midpoints_path, contour_method, headtail_method)
-    iranges = [framerange(ex,cam,stage_i;stagedict=allstages) for stage_i in stages_i]
+function make_cam_data(cam, stages_i;
+                    midpoints_path, contour_method, headtail_method, stagedict)
+    iranges = [stage_frames(ex,cam,stage_i;stagedict) for stage_i in stages_i]
     mids_dict = Elegans.load_midpoints( Elegans.midpoints_filename( ex, cam, s;
                                     midpoints_path, contour_method, headtail_method,
                                     end_assignment_params=Elegans.EndAssigmentParams() ) )
