@@ -1,5 +1,6 @@
 using GLMakie
-
+using ProgressLogging
+using ProgressLogging: @progress
 
 include("midline-stats-funcs.jl")
 
@@ -31,7 +32,7 @@ struct HMData
 end
  AbstractPlotting.convert_arguments(P::Type{<:Heatmap}, d::HMData) = convert_arguments(P, d.x, d.y, d.z)
 
-@recipe(scene->Theme(), CLines, cl)
+@recipe(fig->Theme(), CLines, cl)
 function AbstractPlotting.plot!(plt::CLines)
     cl = plt[:cl]
     lines!( plt, lift(cl->cl.p, cl),
@@ -40,7 +41,7 @@ function AbstractPlotting.plot!(plt::CLines)
     plt
 end
 
-@recipe(scene->Theme(), SyncImage, data)
+@recipe(fig->Theme(), SyncImage, data)
 function AbstractPlotting.plot!(plt::SyncImage)
     data = plt[:data]
     image!( plt, lift(d->d.x, data),
@@ -58,12 +59,14 @@ s_edges = [first(s)-step(s)/2; midpoints(s); last(s)+step(s)/2]
 contours_path = "U:/cached-data/contours"
 midpoints_path = "U:/cached-data/midpoints"
 
-root = "E:/eshkar"
-ex = "Results_090220_EN00021_2nd_new"
 
+# root = "E:/eshkar"
+# ex = "Results_090220_EN00021_2nd_new"
+root, ex = "U:/experiments/reemy", "230120_RA00035"
 stagedict = loadstages()
 
-cams = sort!(collect(keys(stagedict[ex])))
+cams = sort!(collect(keys(stagedict[ex])))[1:8]
+
 exname = match(r"(^|_)\d{6}_(\w\w\d{5})($|_)", ex).captures[2]
 #_vcache = VideoCache(joinpath(ex,cams[1]),root)
 #get_frame(_vcache, 700000)
@@ -79,18 +82,23 @@ function make_pdf_matrix( y, edges, pdf_estimate = histogram_pdf )
 end
 
 ##
+
+
 using Unzip
 
+# TODO reorganize to deal with different contour method for L1
 function make_cam_data(cam, stages_i;
                     midpoints_path, contour_method, headtail_method, stagedict)
+    # @show cam
     iranges = [stage_frames(ex,cam,stage_i;stagedict) for stage_i in stages_i]
     mids_dict = Elegans.load_midpoints( Elegans.midpoints_filename( ex, cam, s;
                                     midpoints_path, contour_method, headtail_method,
                                     end_assignment_params=Elegans.EndAssigmentParams() ) )
+    # @show sort!(collect(keys(mids_dict)))
     mids = [mids_dict[irange] for irange in iranges]
     ncov, windows = unzip( normed_midpts_covs( m, s, irange; winlen, dwin )
                                  for (m, irange) in zip(mids, iranges) )
-    @time log10gv = [log10.(det.(n))' for n in ncov]
+    log10gv = [log10.(det.(n))' for n in ncov]
     # TODO add norm. speed
 
     traj = import_and_calc(joinpath(ex, cam), 3, root)
@@ -99,13 +107,14 @@ function make_cam_data(cam, stages_i;
 end
 
 
-stages_i = 3:5
+stages_i = 2:5
 contour_method = Thresholding(1.0,0.34)
 headtail_method = Elegans.SpeedHTCM(5,0)
 
 #@profiler cvd = make_cam_data(cams[1], 4:5; midpoints_path, contour_method, headtail_method)
 
-@progress "cam data" allcams_data = [make_cam_data(cam, stages_i; midpoints_path, contour_method, headtail_method) for cam in cams]
+@progress "cam data" allcams_data = [make_cam_data(cam, stages_i; stagedict, midpoints_path, contour_method, headtail_method)
+                for cam in cams]
 
 ##
 
@@ -162,7 +171,7 @@ log10gv(vd, stage_i) = vd.log10gv[stage_i]
 function make_stage_vis_data(cam_data, stage_i)
     irange = cam_data.iranges[stage_i]
 
-    @info "Generating visualization data for stage $stage_i..."
+    @info "Generating visualization data for stage $(stages_i[stage_i])..."
 
     vcache = cam_data.vcache
     traj = cam_data.traj
@@ -195,33 +204,41 @@ using Formatting
 
 const Axis = AbstractPlotting.Axis
 
-scene, layout = layoutscene()
-layout[1,1:2] = top_menus = GridLayout()
+#scene, layout = layoutscene()
+fig = Figure()
+top_menus = fig[1,1]
 
-top_menus[1,1] = cam_menu = Menu(scene; options=cams)
-top_menus[1,2] = stage_menu = Menu(scene; options=stages_i)
+top_menus[1,1] = cam_menu = Menu(fig; options=cams)
+top_menus[1,2] = stage_menu = Menu(fig; options=stages_i)
 
 cam_menu.i_selected[] = 1
 stage_menu.i_selected[] = 1
 vis_data = lift( (i,j)->make_stage_vis_data(allcams_data[i], j),
                 cam_menu.i_selected, stage_menu.i_selected )
 
-top_menus[1,3] = Menu(scene; options=["GV", "normal"], i_selected=1)
-top_menus[1,4] = hm_type_menu = Menu(scene; options=["this", "this - mean", "mean"], i_selected=1)
-hm_types = (; this=1, Δ=2, mean=3)
-scene
-hist_time_filter = Toggle(scene; active=true)
-hist_sel_filter = Toggle(scene)
-#top_menus[1,3] = grid!([hmfilter_toggle Text(scene, "HM filtered")])
+top_menus[1,3] = Menu(fig; options=["GV", "normal"], i_selected=1)
+top_menus[1,4] = hm_type_menu = Menu(fig; i_selected=1,
+            options = ["this", "this - mean", "(this - mean)/mean", "mean"])
+hm_types = (; this=1, Δ=2, Δrel=3, mean=4)
 
-layout[2,1:2] = speed_plot = Axis(scene)
+hist_time_filter = Toggle(fig; active=true)
+hist_sel_filter = Toggle(fig)
+#top_menus[1,3] = grid!([hmfilter_toggle Text(fig, "HM filtered")])
 
-layout[3,1] = hist1d_ax = Axis(scene)
-layout[3,2] = ax = Axis(scene)
-rowsize!(layout, 2, Auto(true,1))
-rowsize!(layout, 3, Auto(true,5))
-colsize!(layout, 1, Auto(true,1))
-colsize!(layout, 2, Auto(true,7))
+fig[2,1] = speed_plot = Axis(fig)
+hist_area = fig[3,1]
+
+hist_area[1,1] = hist1d_ax = Axis(fig)
+hist_area[1,2] = ax = Axis(fig)
+hist_area[1,3] = cb_layout = GridLayout()
+
+rowsize!(fig.layout, 2, Auto(true,1))
+rowsize!(fig.layout, 3, Auto(true,5))
+
+hist_layout = content(hist_area)
+colsize!(hist_layout, 1, Auto(true,1))
+colsize!(hist_layout, 2, Auto(true,7))
+colsize!(hist_layout, 3, Auto(true,0.25))
 
 linkyaxes!(hist1d_ax, ax)
 hideydecorations!(ax)
@@ -251,7 +268,7 @@ end
 
 time_range = lift(time_sel) do line
     from, to = round.(Int, minmax(line[1][1],line[2][1]))
-    from:to
+    (from:to) ∩ vis_data[].irange
 end
 
 time_rect = @lift FRect( first($time_range), $speed_lims[1],
@@ -260,13 +277,13 @@ poly!(speed_plot, time_rect, color=RGBAf0(0.5,0,1,0.1))
 # windows included in selected time range
 time_range_i = @lift findall( w -> issubset(w, $time_range), $vis_data.windows )
 
-n_on_text = Textbox(scene; stored_string="100")
-n_off_text = Textbox(scene; stored_string="100")
+n_on_text = Textbox(fig; stored_string="100")
+n_off_text = Textbox(fig; stored_string="100")
 n_on = lift(s->something(tryparse(Int, s), 0), n_on_text.stored_string)
 n_off = lift(s->something(tryparse(Int, s), 0), n_off_text.stored_string)
-sp_options = layout[2,3] = GridLayout(tellheight=false)
-sp_options[1,1] = n_segments_sl = Slider(scene; range=1:100, value=1)
-sp_options[2,1] = segment_i_sl = Slider(scene; range=1:1, value=1)
+sp_options = fig[2,2] = GridLayout(tellheight=false)
+sp_options[1,1] = n_segments_sl = Slider(fig; range=1:100, value=1)
+sp_options[2,1] = segment_i_sl = Slider(fig; range=1:1, value=1)
 on(n_segments_sl.value) do n
     segment_i_sl.range[] = 1:n
     #set_close_to!(segments_i_sl, segment_i_sl.value[])
@@ -278,45 +295,54 @@ onany(n_segments_sl.value, segment_i_sl.value) do n,i
     time_sel[] = collect(Point2.( extrema(frames), speed_lims[] ))
 end
 
-rightpane = layout[3,3] = GridLayout(tellheight=false)
+fig[3,2] = GridLayout(tellheight=false)
+rightpane = fig[3,2]
 
-#rightpane[1,1] = Label(scene, "Histogram filters:")
+# crange_pane = rightpane[1,1:3]
+# crange_pane[1,1] = crange_toggle = Toggle(fig)
+# crange_pane[1,2] = crange_sl = Slider(fig; range=1:0.1:10)
+#crange_pane = hist_area[1,4]
+#cb_layout[1,1] = crange_toggle = Label(fig, "global")
+cb_layout[1,1:2] = crange_toggle = Toggle(fig)
+cb_layout[2,2] = crange_sl = Slider(fig; range=1:0.1:10, horizontal=false)
+#crange_pane[1,1] = crange_sl = Slider(fig; range=1:0.1:10, horizontal=false)
+
 rightpane[1,1:3] = window_choose = GridLayout()
 rightpane[2,1:3] = window_viz = GridLayout()
-hist_filters_grid = grid!([hist_time_filter Label(scene, "time");
-                           hist_sel_filter Label(scene, "rect.")])
-on_α, off_α = [Slider(scene; range=0:0.01:1) for _=1:2]
-on_α_label, off_α_label = [Label(scene, @lift(format("{:.2f}", $(sl.value))); halign = :right) for sl in (on_α, off_α)]
+hist_filters_grid = grid!([hist_time_filter Label(fig, "time");
+                           hist_sel_filter Label(fig, "rect.")])
+on_α, off_α = [Slider(fig; range=0:0.01:1) for _=1:2]
+on_α_label, off_α_label = [Label(fig, @lift(format("{:.2f}", $(sl.value))); halign = :right) for sl in (on_α, off_α)]
 
-onoffgrid = grid!([Label(scene, "on")  n_on_text  on_α   on_α_label;
-                   Label(scene, "off") n_off_text off_α  off_α_label],
+onoffgrid = grid!([Label(fig, "on")  n_on_text  on_α   on_α_label;
+                   Label(fig, "off") n_off_text off_α  off_α_label],
                    width=300)
-set_close_to!(on_α, 0.5)
+set_close_to!(on_α, 0.3)
 rightpane[3,1] = hist_filters_grid
-rightpane[3,2] = onoffgrid # lsgrid.layout
-rightpane[3,3] = resample_btn = Button(scene; label="resample")
+rightpane[3,2] = onoffgrid
+rightpane[3,3] = resample_btn = Button(fig; label="resample")
 on(resample_btn.clicks) do _
     selected_rect[] = selected_rect[]
 end
 
-window_choose[1,1] = btn_prev_on = Button(scene; label="⟨")
-window_choose[1,2] = btn_prev = Button(scene; label="-")
-window_choose[1,3] = window_i_txt = Textbox(scene; stored_string="1", validator=Int)
-window_choose[1,4] = btn_next = Button(scene; label="+")
-window_choose[1,5] = btn_next_on = Button(scene; label="⟩")
-window_viz[1,1:3] = win_mids_ax = Axis(scene;
+window_choose[1,1] = btn_prev_on = Button(fig; label="⟨")
+window_choose[1,2] = btn_prev = Button(fig; label="-")
+window_choose[1,3] = window_i_txt = Textbox(fig; stored_string="1", validator=Int)
+window_choose[1,4] = btn_next = Button(fig; label="+")
+window_choose[1,5] = btn_next_on = Button(fig; label="⟩")
+window_viz[1,1:3] = win_mids_ax = Axis(fig;
                                       aspect=DataAspect(),
                                       xticklabelsize=12, yticklabelsize=12)
-mids_α_sl = Slider(scene; range=0:0.01:1)
-mid_i_α_sl = Slider(scene; range=0:0.01:1)
-img_α_sl = Slider(scene; range=0:0.01:1)
-frame_i_sl = Slider(scene; range=1:1)
-window_viz[2,1] = grid!( [Label(scene, "win. midlines") mids_α_sl;
-                            Label(scene, "this midline") mid_i_α_sl;
-                            Label(scene, "image")    img_α_sl;
-                            Label(scene, "frame")    frame_i_sl] )
-window_viz[2,2] = Label(scene, "lock")
-window_viz[2,3] = win_ax_lock = Toggle(scene)
+mids_α_sl = Slider(fig; range=0:0.01:1)
+mid_i_α_sl = Slider(fig; range=0:0.01:1)
+img_α_sl = Slider(fig; range=0:0.01:1)
+frame_i_sl = Slider(fig; range=1:1)
+window_viz[2,1] = grid!( [Label(fig, "win. midlines") mids_α_sl;
+                            Label(fig, "this midline") mid_i_α_sl;
+                            Label(fig, "image")    img_α_sl;
+                            Label(fig, "frame")    frame_i_sl] )
+window_viz[2,2] = Label(fig, "lock")
+window_viz[2,3] = win_ax_lock = Toggle(fig)
 set_close_to!( mids_α_sl, 0.1 )
 set_close_to!( mid_i_α_sl, 0.8 )
 set_close_to!( img_α_sl, 0.8 )
@@ -351,7 +377,6 @@ on(window) do w
     frame_i_sl.range = w
     set_close_to!(frame_i_sl, frame_i_sl.value[])
 end
-
 
 win_mid_clines = lift(vis_data, window, mids_α_sl.value) do vd, w, α
     pts = replace(permutedims(vd.mids[w,begin:end]), missing=>Elegans.missingpoint)
@@ -421,8 +446,8 @@ onany(img_data, win_mid_clines) do _,_;
 end
 
 
-on_color = @lift RGBAf0(1,1,1,$(on_α.value))
-off_color = @lift RGBAf0(1,1,1,$(off_α.value))
+on_color = @lift RGBAf0(0,0,0,$(on_α.value))
+off_color = @lift RGBAf0(0,0,0,$(off_α.value))
 window_i_color = colorant"red"
 window_clicked_color = window_i_color
 
@@ -459,7 +484,7 @@ on(btn_next_on.clicks) do _
 end
 
 function enable_button!(button, enabled = true, discolor = RGBf0(0.5,0.5,0.5))
-    defaults = MakieLayout.default_attributes(Button, scene).attributes
+    defaults = MakieLayout.default_attributes(Button, fig.scene).attributes
     for sym in (:buttoncolor, :buttoncolor_hover, :buttoncolor_active)
         button.:($sym) = enabled ? defaults[sym][] : discolor
     end
@@ -492,26 +517,68 @@ refpdfs = @lift ref_pdf_estimates( allcams_data, s, log10gv,
                          $pdf_timerange, $pdf_rect;
                          edges = $vis_data.y_edges )
 
+function pointwise_finmean(v)
+    ax = only(unique(axes.(v)))
+    [NaNMath.mean(filter(isfinite, [r[i] for r in v])) for i in CartesianIndices(ax)]
+end
+
 hmdata = lift(refpdfs, hm_type_menu.i_selected) do refpdfs, i
     z = i == hm_types.this ?
             refpdfs[cam_menu.i_selected[]] :
         i == hm_types.Δ ?
-            mean(refpdfs) - refpdfs[cam_menu.i_selected[]] :
+            refpdfs[cam_menu.i_selected[]] .- mean(refpdfs) :
+        i == hm_types.Δrel ?
+            refpdfs[cam_menu.i_selected[]] ./ mean(refpdfs) .- 1 :
         i == hm_types.mean ?
             mean(refpdfs) :
+            #pointwise_finmean(refpdfs) :
             error("i = $i")
     HMData(s_edges, vis_data[].y_edges, z)
 end
 
+
+pdf_crange = lift(hmdata, hm_type_menu.i_selected,
+                  crange_toggle.active, crange_sl.value) do d, i, globalmax, v
+    frac = 2.0^-v
+    crange = if i == hm_types.Δrel
+        m = reduce(max, abs.(filter(isfinite, d.z)), init=0.0)
+        (-m*frac, m*frac)
+    else
+        m = frac * (globalmax ? maximum(reduce(max, filter(isfinite,r), init=0.0) for r in refpdfs[])
+                              : reduce(max, filter(isfinite, d.z), init=0.0))
+        if i ∈ (hm_types.this, hm_types.mean)
+            (0.0, m)
+        elseif i == hm_types.Δ
+            (-m, m)
+        else
+            error("i = $i")
+        end
+    end
+end
+
 diverging = :diverging_bwr_40_95_c42_n256 # Alias missing from older `PlotUtils` versions
 hm_cmap = lift(hm_type_menu.i_selected) do i
-    i == hm_types.Δ ? cgrad(diverging) : cgrad(:viridis)
+    i ∈ (hm_types.Δ, hm_types.Δrel) ? cgrad(diverging) : cgrad(:viridis)
 end
+
+# pdfs_max = @lift
+# pdf_crange = @lift (-$pdfs_max, $pdfs_max)
 
 # trigger update
 selected_rect[] = vis_data[].default_rect
 
-heatmap!(ax, hmdata, colormap=hm_cmap)
+hm = heatmap!(ax, hmdata, colormap=hm_cmap, colorrange = pdf_crange)
+
+cb_layout[2,1] = cb = Colorbar(fig, hm, width=20)
+
+# on(hm_type_menu.i_selected) do i
+on(hmdata) do _
+    if hm_type_menu.i_selected[] ∈ (hm_types.Δ, hm_types.Δrel)
+        hm.colorrange = (-1,1) .* maximum(abs.(hm.colorrange[]))
+    end
+end
+
+
 lines!(ax, on_data, color=on_color)
 lines!(ax, off_data, color=off_color)
 lines!(ax, s, @lift($vis_data.y[:,$window_i]), color=window_i_color, linewidth=2)
@@ -531,27 +598,28 @@ function enclosing_2d_bin(edges_x, edges_y, pt)
     FRect( x_bin.from, y_bin.from, x_bin.to-x_bin.from, y_bin.to-y_bin.from )
 end
 
+allfinite(rect::Rect) = all(all(isfinite,p) for p in coordinates(rect))
 pt_e = on(pt) do p
     # if point is near a rect vertex, assume a rectangle selection was
     # just performed and skip the point update.
     # TODO: find cleaner way to distinguish point from rect selection
     if all(!isapprox(p,q) for q in decompose(Point2{Float64}, selected_rect[]))
         bin = enclosing_2d_bin(s_edges, vis_data[].y_edges, p)
-        isfinite(bin) && (selected_rect[] = bin)
+        allfinite(bin) && (selected_rect[] = bin)
     end
 end
 
-function index_from_mousepos( scene, upperbounds, dim=1 )
-    pos = mouseposition(scene)[dim]
+function index_from_mousepos( fig, upperbounds, dim=1 )
+    pos = mouseposition(fig)[dim]
     i = searchsortedfirst(upperbounds, pos)
     min( i, lastindex(upperbounds) )
 end
 
-function hovered_index( axevents, scene, ub_obs, dim=1 )
+function hovered_index( axevents, fig, ub_obs, dim=1 )
     @assert issorted(ub_obs[])
     res = Observable(firstindex(ub_obs[]))
     handle = onmouseover(axevents) do evt
-        res[] = index_from_mousepos( scene, ub_obs[], dim )
+        res[] = index_from_mousepos( fig, ub_obs[], dim )
     end
     res, handle
 end
@@ -621,4 +689,4 @@ set_hist1d_lims(hmdata[])
 on(set_hist1d_lims, hmdata)
 hist1d_ax.ylabel = "log₁₀(GV⋅len⁻²)"
 
-scene
+display(fig)

@@ -6,8 +6,7 @@ using GeometryBasics
 using Statistics
 using Missings
 
-##
-
+# TODO some functions here should be moved into the package
 function load_cam( root, ex, cam, contours_path, midpoints_path;
                     contour_method=Thresholding(1.0,0.34),
                     headtail_method=SpeedHTCM(5,0), end_assignment_params=EndAssigmentParams() )
@@ -30,11 +29,6 @@ end
 nomiss(v) = disallowmissing(filter(!ismissing,v))
 _cov(x::AbstractVector{P}) where {N,T,P<:Point{N,T}} = isempty(x) ? fill(T(NaN),SMatrix{2,2}) : cov(x)
 
-function framerange( ex, cam, stage_i; stagedict=loadstages() )
-    stage_boundaries = stagedict[ex][cam]
-    return stage_boundaries[stage_i]+1:stage_boundaries[stage_i+1]
-end
-
 function midpts_covs( midpts, t, irange; winlen=60, dwin=20 )
     windows = [irange[i0+1:i0+winlen] for i0 in 0:dwin:length(irange)-winlen]
     covs = [_cov(nomiss(midpts[i,j])) for i in windows, j in eachindex(t)]
@@ -43,7 +37,7 @@ end
 
 function midpts_covs_for_stage( ex, cam, mids, stage_i; winlen=60, dwin=20, stagedict=loadstages() )
 
-    irange = framerange( ex, cam, stage_i; stagedict )
+    irange = stage_frames( ex, cam, stage_i; stagedict )
     @info "$cam, stage $stage_i: frames $irange"
     midpts = mids(irange)
 
@@ -85,7 +79,7 @@ function cam_ncovs( ex, cam, stage_i, midpoints_path;
     midsdict = Elegans.load_midpoints( Elegans.midpoints_filename( ex, cam, t;
                                 midpoints_path, contour_method, headtail_method,
                                 end_assignment_params=Elegans.EndAssigmentParams() ) )
-    irange = framerange( ex, cam, stage_i )
+    irange = stage_frames( ex, cam, stage_i )
 #    @info "Computing normalized midline covariances ($ex: $cam)"
     Dict((irange, normed_midpts_covs(midpts,t,irange; winlen, dwin)) for (irange,midpts) in midsdict)
 end
