@@ -1,8 +1,10 @@
 using GLMakie
 using ProgressLogging
 using ProgressLogging: @progress
+using Colors
+using GeometryBasics
 
-include("midline-stats-funcs.jl")
+using Elegans
 
 ##
 using Missings
@@ -84,6 +86,7 @@ end
 ##
 
 
+using LinearAlgebra
 using Unzip
 
 # TODO reorganize to deal with different contour method for L1
@@ -96,27 +99,36 @@ function make_cam_data(cam, stages_i;
                                     end_assignment_params=Elegans.EndAssigmentParams() ) )
     # @show sort!(collect(keys(mids_dict)))
     mids = [mids_dict[irange] for irange in iranges]
-    ncov, windows = unzip( normed_midpts_covs( m, s, irange; winlen, dwin )
-                                 for (m, irange) in zip(mids, iranges) )
+    @progress "covs" wncovs = [normed_midpoint_covs( m, s, irange; winlen, dwin )
+                                 for (m, irange) in zip(mids, iranges)]
+    ncov, windows = unzip( wncovs )
     log10gv = [log10.(det.(n))' for n in ncov]
-    # TODO add norm. speed
+    # TODO normalize normal speed
+    @progress "normal" nspeed = [normal_speeds(m)' for m in mids]
 
     traj = import_and_calc(joinpath(ex, cam), 3, root)
     vcache = VideoCache(joinpath(ex,cam), root)
-    (; traj, iranges, windows, ncov, log10gv, mids, vcache )
+    (; traj, iranges, windows, ncov, nspeed, log10gv, mids, vcache )
 end
-
 
 stages_i = 2:5
 contour_method = Thresholding(1.0,0.34)
 headtail_method = Elegans.SpeedHTCM(5,0)
 
-#@profiler cvd = make_cam_data(cams[1], 4:5; midpoints_path, contour_method, headtail_method)
-
 @progress "cam data" allcams_data = [make_cam_data(cam, stages_i; stagedict, midpoints_path, contour_method, headtail_method)
                 for cam in cams]
 
 ##
+
+using OffsetArrays: no_offset_view
+
+function latest_change(obs::Observable{T}, eq = (==)) where T
+    out = Observable{T}(obs[])
+    on(obs) do val
+        eq(val, out[]) || (out[] = val)
+    end
+    out
+end
 
 function translated_frameindex(i, source_iranges, dest_iranges)
     stage_i = searchsortedfirst(last.(source_iranges), i)
@@ -142,7 +154,7 @@ end
 # window indices `j` inside given frame range, where the line (`s`,`y[:,j]`)
 # passes through the given `rect`
 # (meaning `(s[i],y[i,j])` is in `rect` for some `i`)
-function filtered_windows(windows, s, y, rect=nothing, framerange=nothing)
+function filtered_windows(s, windows, y, rect=nothing, framerange=nothing)
     k = Set(eachindex(windows))
     framerange !== nothing && filter!( j -> issubset(windows[j], framerange), k )
     rect !== nothing && filter!( j -> any((pt ∈ rect) for pt in Point2.(s,y[:,j])), k )
@@ -152,23 +164,42 @@ end
 # Window indices for reference statistics, for the given rectangle and time range.
 # These are indices of windows for each cam in the same stage,
 # within the same normalized time as `framerange` in camera `cam_i` time,
-# and where the measure specified by `f` lies inside `rect`
+# and where the measure `y` lies inside `rect`.
+# The given function `f` returns `(windows, y) = f(camdata, stage_i)`
 function ref_samples( allcams_data, s, f, cam_i, stage_i, framerange, rect = nothing )
     @assert issubset( framerange, allcams_data[cam_i].iranges[stage_i] )
     ranges = translated_frameranges(allcams_data, framerange, cam_i)
-    [filtered_windows(vd.windows[stage_i], s, f(vd,stage_i), rect, r)
-            for (vd, r) in zip(allcams_data, ranges)]
+    [filtered_windows(s, f(camdata,stage_i)..., rect, r)
+            for (camdata, r) in zip(allcams_data, ranges)]
 end
 
 function ref_pdf_estimates( allcams_data, s, f, cam_i, stage_i, framerange, rect = nothing;
                             edges, pdf_estimate = histogram_pdf )
-    samples = ref_samples(allcams_data, s, f, cam_i, stage_i, framerange, rect)
-    [make_pdf_matrix(f(vd,stage_i)[:,k], edges, pdf_estimate) for (vd,k) in zip(allcams_data, samples)]
+#    @show (f, cam_i, stage_i, framerange, rect, edges)
+    @info "Generating reference pdf estimates for $(cams[cam_i]) / $(stages_i[stage_i]) / $framerange..."
+    @time samples = ref_samples(allcams_data, s, f, cam_i, stage_i, framerange, rect)
+    @progress res = [make_pdf_matrix(f(cd,stage_i)[2][:,k], edges, pdf_estimate) for (cd,k) in zip(allcams_data, samples)]
+    @info "Done."
+    res
 end
 
-log10gv(vd, stage_i) = vd.log10gv[stage_i]
+# normal speed is estimated from a 3-window around each frame.
+function nspeed_windows(cd, stage_i)
+    r = cd.iranges[stage_i]
+    map( i -> (i-1:i+1) ∩ r, r )
+end
 
-function make_stage_vis_data(cam_data, stage_i)
+log10gv(cd, stage_i) = cd.log10gv[stage_i]
+nspeed(cd, stage_i) = no_offset_view(cd.nspeed[stage_i])
+log10nspeed(cd, stage_i) = log10.(abs.(no_offset_view(cd.nspeed[stage_i])))
+
+log10gv_visdata(cd, stage_i) = (cd.windows[stage_i], cd.log10gv[stage_i])
+nspeed_visdata(cd, stage_i) = (nspeed_windows(cd, stage_i), nspeed(cd, stage_i))
+log10nspeed_visdata(cd, stage_i) = (nspeed_windows(cd, stage_i), log10nspeed(cd, stage_i))
+
+##
+
+function make_stage_vis_data(cam_i, stage_i, f, cam_data=allcams_data[cam_i])
     irange = cam_data.iranges[stage_i]
 
     @info "Generating visualization data for stage $(stages_i[stage_i])..."
@@ -176,19 +207,23 @@ function make_stage_vis_data(cam_data, stage_i)
     vcache = cam_data.vcache
     traj = cam_data.traj
     sm_speed = imfilter( replace(traj.speed[irange], missing=>NaN), gaussian(100), NA() )
-    cam_ncov = cam_data.ncov[stage_i]
-    windows = cam_data.windows[stage_i]
-    y = cam_data.log10gv[stage_i]
-    #y = log10.(det.(cam_ncov))'
+    windows, y = f(cam_data, stage_i)
     @info "Done."
 
-    miny, maxy = floor(Int,NaNMath.minimum(y)), ceil(Int,NaNMath.maximum(y))
-    y_edges = miny:0.25:maxy
+    #miny, maxy = floor(Int,NaNMath.minimum(y)), ceil(Int,NaNMath.maximum(y))
+    yf = filter(isfinite, y)
+    miny, maxy = floor(Int,quantile(yf,0.005)), ceil(Int,quantile(yf,0.995))
+    y_edges = range(miny, maxy; length=41)
     default_rect = FRect2D( 0.0, miny, 1.0, maxy-miny )
 
     mids = cam_data.mids[stage_i]
 
-    (; y, mids, traj, sm_speed, windows, irange, y_edges, default_rect, vcache)
+    # inputs (cam_i, stage_i, f) included in output to allow synchronized
+    # updates through this output, avoiding diamond-shaped dependencies
+    (; cam_i, stage_i, f,
+        y, mids, traj, sm_speed, windows, irange,
+        y_edges, default_rect,
+        vcache)
 end
 
 using Statistics
@@ -201,36 +236,41 @@ using Observables
 using NaNMath
 using GeometryBasics: decompose
 using Formatting
+using OffsetArrays: no_offset_view
 
-const Axis = AbstractPlotting.Axis
-
-#scene, layout = layoutscene()
 fig = Figure()
-top_menus = fig[1,1]
+# Top menu moved to [1,2] to avoid trigerring hover events on speed plot
+# when selecting menu items.
+# Can be moved to the top (above speed plot) when when Makie.jl issue #777 is fixed.
+top_menus = fig[1,2]
 
 top_menus[1,1] = cam_menu = Menu(fig; options=cams)
 top_menus[1,2] = stage_menu = Menu(fig; options=stages_i)
+top_menus[1,3] = stats_type_menu = Menu(fig; options=["GV", "normal"], i_selected=1)
 
 cam_menu.i_selected[] = 1
 stage_menu.i_selected[] = 1
-vis_data = lift( (i,j)->make_stage_vis_data(allcams_data[i], j),
-                cam_menu.i_selected, stage_menu.i_selected )
 
-top_menus[1,3] = Menu(fig; options=["GV", "normal"], i_selected=1)
+vis_data_f = lift(i->(log10gv_visdata, log10nspeed_visdata)[i], stats_type_menu.i_selected; typ=Any)
+
+vis_data = lift( make_stage_vis_data,
+                 cam_menu.i_selected, stage_menu.i_selected, vis_data_f;
+                 typ=Any )
+
 top_menus[1,4] = hm_type_menu = Menu(fig; i_selected=1,
-            options = ["this", "this - mean", "(this - mean)/mean", "mean"])
-hm_types = (; this=1, Δ=2, Δrel=3, mean=4)
+            options = ["x", "x - x̄", "log₂(x/x̄)", "x̄"])
+hm_types = (; this=1, Δ=2, logratio=3, mean=4)
 
 hist_time_filter = Toggle(fig; active=true)
 hist_sel_filter = Toggle(fig)
-#top_menus[1,3] = grid!([hmfilter_toggle Text(fig, "HM filtered")])
 
-fig[2,1] = speed_plot = Axis(fig)
+fig[1:2,1] = speed_plot = Axis(fig)
 hist_area = fig[3,1]
 
 hist_area[1,1] = hist1d_ax = Axis(fig)
 hist_area[1,2] = ax = Axis(fig)
 hist_area[1,3] = cb_layout = GridLayout()
+
 
 rowsize!(fig.layout, 2, Auto(true,1))
 rowsize!(fig.layout, 3, Auto(true,5))
@@ -256,19 +296,43 @@ function time_segment(irange, from, to)
 end
 
 
+function _fix_range(from, to, irange)
+    from, to = round.(Int, minmax(from, to))
+    (from:to) ∩ vis_data[].irange
+end
+frame_to_stagetime(i, irange) = (i-first(irange)) / (last(irange)-first(irange))
+stagetime_to_frame(x, irange) = first(irange) + x * (last(irange)-first(irange))
+stage_timespan_to_framerange(span, irange) = _fix_range(
+                stagetime_to_frame(span[1], irange),
+                stagetime_to_frame(span[2], irange),
+                irange)
+
 time_sel = select_line(speed_plot.scene)
 
 speed_lims = @lift extrema(filter(isfinite,$vis_data.sm_speed))
 #reset_time_sel(sel=time_sel) = (sel[] = Point2.( [first(vis_data[].irange),last(vis_data[].irange)], speed_lims[] ))
-reset_time_sel(sel=time_sel) = (sel[] = collect(Point2.( extrema(vis_data[].irange), speed_lims[] )))
-reset_time_sel()
-on(vis_data) do vd
-    reset_time_sel()
-end
+reset_time_sel(vd, sel=time_sel) = (s = collect(Point2.( extrema(vd.irange), speed_lims[] ));
+                                    #@show s;
+                                    sel[] = s)
+reset_time_sel(vis_data[])
 
 time_range = lift(time_sel) do line
-    from, to = round.(Int, minmax(line[1][1],line[2][1]))
-    (from:to) ∩ vis_data[].irange
+    @show line
+    _fix_range( line[1][1], line[2][1], vis_data[].irange )
+end
+# Time span as a tuple (`from`,`to`) in normalized stage time
+# (0 is stage start, 1 stage end).
+# This is kept constant and actual frame range adjusted when switching stages/cams
+stage_time_span = lift(time_range) do r
+    vd = vis_data[]
+    span = (frame_to_stagetime(first(r), vd.irange), frame_to_stagetime(last(r), vd.irange))
+    # @show span
+    # span
+end
+on(vis_data) do vd
+    # adjust selected frame range according to current normalized stage time
+    span = stage_time_span[]
+    time_sel[] = collect(Point2.( stagetime_to_frame.(span, Ref(vd.irange)), speed_lims[] ))
 end
 
 time_rect = @lift FRect( first($time_range), $speed_lims[1],
@@ -298,14 +362,8 @@ end
 fig[3,2] = GridLayout(tellheight=false)
 rightpane = fig[3,2]
 
-# crange_pane = rightpane[1,1:3]
-# crange_pane[1,1] = crange_toggle = Toggle(fig)
-# crange_pane[1,2] = crange_sl = Slider(fig; range=1:0.1:10)
-#crange_pane = hist_area[1,4]
-#cb_layout[1,1] = crange_toggle = Label(fig, "global")
 cb_layout[1,1:2] = crange_toggle = Toggle(fig)
-cb_layout[2,2] = crange_sl = Slider(fig; range=1:0.1:10, horizontal=false)
-#crange_pane[1,1] = crange_sl = Slider(fig; range=1:0.1:10, horizontal=false)
+cb_layout[2,2] = crange_sl = Slider(fig; range=0:0.1:10,    horizontal=false)
 
 rightpane[1,1:3] = window_choose = GridLayout()
 rightpane[2,1:3] = window_viz = GridLayout()
@@ -322,7 +380,7 @@ rightpane[3,1] = hist_filters_grid
 rightpane[3,2] = onoffgrid
 rightpane[3,3] = resample_btn = Button(fig; label="resample")
 on(resample_btn.clicks) do _
-    selected_rect[] = selected_rect[]
+    active_rect[] = active_rect[]
 end
 
 window_choose[1,1] = btn_prev_on = Button(fig; label="⟨")
@@ -350,8 +408,9 @@ hidedecorations!(win_mids_ax)
 
 clamped_get(v,i) = v[clamp(i,firstindex(v),lastindex(v))]
 
+
 # The last explicitly chosen window
-window_i = Observable(1)
+window_i = async_latest(Observable(1))
 # # Window currently displayed. My differ from `window_i on hover.
 # window_i_disp = Observable(1)
 onany(vis_data, window_i_txt.stored_string) do vd, str
@@ -451,10 +510,17 @@ off_color = @lift RGBAf0(0,0,0,$(off_α.value))
 window_i_color = colorant"red"
 window_clicked_color = window_i_color
 
-#selected_rect = Observable(vis_data[].default_rect)
 selected_rect = select_rectangle(ax.scene)
+# `active_rect` is either `selected_rect` or `nothing`
+active_rect = Observable{Any}(selected_rect[])
+on(selected_rect) do rect
+    active_rect[] = rect
+end
+
 # indices of lines passing through selected_rect
-inside_rect = @lift filter(i->any((pt in $selected_rect) for pt in Point2.(s,$vis_data.y[:,i])), axes($vis_data.y,2))
+inside_rect = @lift filter(i -> $active_rect === nothing || any(
+                    (pt in $selected_rect) for pt in Point2.(s,$vis_data.y[:,i])),
+                axes($vis_data.y,2))
 # indices of samples from selected (on) and other (off) lines
 on_i = Observable(Int[])
 off_i = Observable(Int[])
@@ -510,12 +576,28 @@ on_off_e = onany(inside_rect, n_on, n_off, time_range_i) do inside_rect, n_on, n
     off_i[] = sample(all_off, min(n_off, length(all_off)); replace=false) |> sort!
 end
 
-pdf_timerange = @lift $(hist_time_filter.active) ? $time_range : $vis_data.irange
-pdf_rect = lift( (active,rect) -> (active ? rect : nothing), hist_sel_filter.active, selected_rect, typ=Any) # ? $selected_rect : nothing # $vis_data.default_rect
-refpdfs = @lift ref_pdf_estimates( allcams_data, s, log10gv,
-                         $(cam_menu.i_selected), $(stage_menu.i_selected),
-                         $pdf_timerange, $pdf_rect;
-                         edges = $vis_data.y_edges )
+# async_latest causes trouble with Observables 0.3.3
+# TODO: use it when GLMakie supports Observables 0.4
+pdf_rect = #async_latest(
+                latest_change(
+                    lift( (active,rect) -> (active ? rect : nothing),
+                          hist_sel_filter.active, active_rect, typ=Any )
+                )
+            #)
+
+# reference pdfs are computed from `stage_time_span` rather than `time_range`
+# to avoid double-update when changing stage/cam due to change of frame range.
+refpdfs = lift(vis_data, latest_change(stage_time_span),
+                #async_latest(hist_time_filter.active),
+                hist_time_filter.active,
+                pdf_rect
+              ) do vd, tspan, tfilter, rect
+    framerange = tfilter ? stage_timespan_to_framerange(tspan, vd.irange) : vd.irange
+    pdfs = ref_pdf_estimates( allcams_data, s, vd.f, vd.cam_i, vd.stage_i,
+                              framerange, rect;
+                              edges=vd.y_edges )
+    (; vd.y_edges, pdfs )
+end
 
 function pointwise_finmean(v)
     ax = only(unique(axes.(v)))
@@ -523,28 +605,29 @@ function pointwise_finmean(v)
 end
 
 hmdata = lift(refpdfs, hm_type_menu.i_selected) do refpdfs, i
+    pdfs, y_edges = refpdfs.pdfs, refpdfs.y_edges
     z = i == hm_types.this ?
-            refpdfs[cam_menu.i_selected[]] :
+            pdfs[cam_menu.i_selected[]] :
         i == hm_types.Δ ?
-            refpdfs[cam_menu.i_selected[]] .- mean(refpdfs) :
-        i == hm_types.Δrel ?
-            refpdfs[cam_menu.i_selected[]] ./ mean(refpdfs) .- 1 :
+            pdfs[cam_menu.i_selected[]] .- mean(pdfs) :
+        i == hm_types.logratio ?
+            log2.(pdfs[cam_menu.i_selected[]] ./ mean(pdfs)) :
         i == hm_types.mean ?
-            mean(refpdfs) :
-            #pointwise_finmean(refpdfs) :
+            mean(pdfs) :
+            #pointwise_finmean(pdfs) :
             error("i = $i")
-    HMData(s_edges, vis_data[].y_edges, z)
+    HMData(s_edges, y_edges, z)
 end
 
 
 pdf_crange = lift(hmdata, hm_type_menu.i_selected,
                   crange_toggle.active, crange_sl.value) do d, i, globalmax, v
     frac = 2.0^-v
-    crange = if i == hm_types.Δrel
+    crange = if i == hm_types.logratio
         m = reduce(max, abs.(filter(isfinite, d.z)), init=0.0)
         (-m*frac, m*frac)
     else
-        m = frac * (globalmax ? maximum(reduce(max, filter(isfinite,r), init=0.0) for r in refpdfs[])
+        m = frac * (globalmax ? maximum(reduce(max, filter(isfinite,r), init=0.0) for r in refpdfs[].pdfs)
                               : reduce(max, filter(isfinite, d.z), init=0.0))
         if i ∈ (hm_types.this, hm_types.mean)
             (0.0, m)
@@ -558,22 +641,19 @@ end
 
 diverging = :diverging_bwr_40_95_c42_n256 # Alias missing from older `PlotUtils` versions
 hm_cmap = lift(hm_type_menu.i_selected) do i
-    i ∈ (hm_types.Δ, hm_types.Δrel) ? cgrad(diverging) : cgrad(:viridis)
+    i ∈ (hm_types.Δ, hm_types.logratio) ? cgrad(diverging) : cgrad(:viridis)
 end
 
-# pdfs_max = @lift
-# pdf_crange = @lift (-$pdfs_max, $pdfs_max)
 
 # trigger update
-selected_rect[] = vis_data[].default_rect
+active_rect[] = nothing
 
 hm = heatmap!(ax, hmdata, colormap=hm_cmap, colorrange = pdf_crange)
 
 cb_layout[2,1] = cb = Colorbar(fig, hm, width=20)
 
-# on(hm_type_menu.i_selected) do i
 on(hmdata) do _
-    if hm_type_menu.i_selected[] ∈ (hm_types.Δ, hm_types.Δrel)
+    if hm_type_menu.i_selected[] ∈ (hm_types.Δ, hm_types.logratio)
         hm.colorrange = (-1,1) .* maximum(abs.(hm.colorrange[]))
     end
 end
@@ -583,8 +663,9 @@ lines!(ax, on_data, color=on_color)
 lines!(ax, off_data, color=off_color)
 lines!(ax, s, @lift($vis_data.y[:,$window_i]), color=window_i_color, linewidth=2)
 
+selected_rect_color = @lift RGBAf0(1,1,1, ($active_rect !== nothing) * 0.75)
 deregister_interaction!(ax, :rectanglezoom)
-poly!(ax, selected_rect, strokecolor = RGBAf0(1,1,1,0.75), color=nothing, linestyle=:dot)
+poly!(ax, selected_rect, strokecolor = selected_rect_color, color=nothing, linestyle=:dot)
 pt = select_point(ax.scene)
 
 function enclosing_bin(edges, x)
@@ -626,12 +707,12 @@ end
 
 axevents = addmouseevents!(ax.scene)
 onmouserightup(axevents) do evt
-    selected_rect[] = vis_data[].default_rect
+    active_rect[] = nothing
 end
 
 spevents = addmouseevents!(speed_plot.scene)
 onmouserightup(spevents) do evt
-    reset_time_sel()
+    reset_time_sel(vis_data[])
 end
 
 windows_upperbounds = @lift(last.($vis_data.windows))
@@ -676,8 +757,6 @@ on(vis_data) do vd
     # time_sel[] = Point2.( [first(vd.irange),last(vd.irange)], speed_lims[] )
     autolimits!(speed_plot)
 end
-
-
 
 lines!(hist1d_ax, @lift(Point2.($hmdata.z[$hovered_bin,:], midpoints($hmdata.y))))
 #lines!(hist1d_ax, @lift($z[$hovered_bin,:]), lift(midpoints,edges))
