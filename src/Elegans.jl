@@ -14,7 +14,8 @@ export import_coords, import_and_calc, loadstages, stage_names, stage_frames,
        contour2splines, aligned_splines,
        isroaming, roam_for_stage,
        end_trajectories, end_assignment_segments, headtail_trajectories,
-       range_midpoints, midpoint_cache, init_midpoints,
+       range_midpoints, midpoint_covs, normed_midpoint_covs, normal_speeds,
+       midpoint_cache, init_midpoints,
        save_midpoints, midpoints_filename,
        forward_speed, speed_heatmap, speed_heatmap_data, speed_heatmap_plot,
        log_speed_ratios,
@@ -39,6 +40,7 @@ include("headtail/forward.jl")
 include("headtail/lsr.jl")
 include("headtail/traj_stats.jl")
 include("headtail/headtail_traj.jl")
+include("midpoints/midpoints.jl")
 
 
 end # module

@@ -116,7 +116,7 @@ function rlevec(ranges, irange, y)
     OffsetVector( RLEVector(runvalues, runends), irange )
 end
 
-# trajectories of worm ends end center in "global" coordinates
+# trajectories of worm ends and center in "global" coordinates
 # (coordinates used in `traj`).
 function headtail_trajectories( traj, contours, irange,
                 headtail_method=SpeedHTCM(5,0), end_assigment_params=EndAssigmentParams() )
@@ -133,22 +133,4 @@ function headtail_trajectories( traj, contours, irange,
     mh = rlevec( ranges, irange, mh_per_range )
 
     head, tail, splits_ht, conf = Elegans.headtail_splits( e1, e2, splits_12, mh )
-end
-
-_mid(sp,s) = Point2(Elegans.splines2midpoint(sp[1],sp[2],s))
-
-function range_midpoints( traj, contours, irange, t=0:0.025:1,
-                            headtail_method=SpeedHTCM(5,0), end_assigment_params=EndAssigmentParams() )
-    @info "Locating head and tail..."
-    head, tail, splits_ht, conf = headtail_trajectories( traj, contours, irange, headtail_method, end_assigment_params )
-    @info "Creating contour splines..."
-    # # TODO this @progress reqires Juno.jl unmerged PR #605
-    # @progress "splines" splines = [passmissing(line2spline).(spl) for spl in splits_ht]
-    # firstindex(splines) == 1 && error("Juno.@progress lost array offsets") # Juno should be updated or @progress removed
-    # alternative:
-    @time splines = [passmissing(line2spline).(spl) for spl in splits_ht]
-
-    @info "Find midpoints..."
-    @progress "midpoints" midpts = [passmissing(_mid)(splines[i],t) for i in irange, t in t]
-    midpts = OffsetArray(midpts, irange, eachindex(t))
 end
