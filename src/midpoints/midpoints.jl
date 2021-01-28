@@ -25,8 +25,9 @@ end
 nomiss(v) = disallowmissing(filter(!ismissing,v))
 _cov(x::AbstractVector{P}) where {N,T,P<:Point{N,T}} = isempty(x) ? fill(T(NaN),SMatrix{2,2}) : cov(x)
 
-function midpoint_covs( midpts, t, irange; winlen=60, dwin=20 )
-    windows = [irange[i0+1:i0+winlen] for i0 in 0:dwin:length(irange)-winlen]
+function midpoint_covs( midpts, t, irange = axes(midpts,1); winlen=60, dwin=20 )
+    fi = firstindex(irange)
+    windows = [irange[i0:i0+winlen-1] for i0 in fi:dwin:length(irange)+fi-winlen]
     covs = [_cov(nomiss(midpts[i,j])) for i in windows, j in eachindex(t)]
     covs, windows, t
 end
@@ -61,7 +62,7 @@ end
 #     normed_covs, windows, t, irange
 # end
 #
-function normed_midpoint_covs(midpts, t, irange; winlen=60, dwin=20)
+function normed_midpoint_covs(midpts, t, irange = axes(midpts,1); winlen=60, dwin=20)
     covs, windows, _ = midpoint_covs( midpts, t, irange; winlen, dwin )
     normed_covs = normalize_covs( covs, midpts, windows )
     normed_covs, windows
