@@ -25,15 +25,17 @@ end
 nomiss(v) = disallowmissing(filter(!ismissing,v))
 _cov(x::AbstractVector{P}) where {N,T,P<:Point{N,T}} = isempty(x) ? fill(T(NaN),SMatrix{2,2}) : cov(x)
 
-function midpoint_covs( midpts, t, irange = axes(midpts,1); winlen=60, dwin=20 )
+function make_windows(irange, winlen=60, dwin=20)
     fi = firstindex(irange)
-    windows = [irange[i0:i0+winlen-1] for i0 in fi:dwin:length(irange)+fi-winlen]
+    [irange[i0:i0+winlen-1] for i0 in fi:dwin:length(irange)+fi-winlen]
+end
+
+function midpoint_covs( midpts, t, windows )
     covs = [_cov(nomiss(midpts[i,j])) for i in windows, j in eachindex(t)]
-    covs, windows, t
+    covs, t
 end
 
 function midpoint_covs_for_stage( ex, cam, mids, stage_i; winlen=60, dwin=20, stagedict=loadstages() )
-
     irange = stage_frames( ex, cam, stage_i; stagedict )
     @info "$cam, stage $stage_i: frames $irange"
     midpts = mids(irange)
@@ -42,30 +44,17 @@ function midpoint_covs_for_stage( ex, cam, mids, stage_i; winlen=60, dwin=20, st
 
     covs, windows, t = midpts_covs( midpts, t, irange; winlen, dwin )
 
-    (;covs, windows, t, irange)
+    (; covs, windows, t, irange)
 end
 
+curvelen(pts) = sum(norm(pts[i+1]-pts[i]) for i in firstindex(pts):lastindex(pts)-1)
 
-function normalize_covs( covs, midpts, windows )
-    curvelen(pts) = sum(norm.(diff(pts)))
-    lens = curvelen.(eachrow(midpts))
-    mean_lens = [mean(lens[w]) for w in windows]
+win_mean_curvelens( pts, windows ) = [mean(curvelen.(eachrow(view(pts,w,:)))) for w in windows]
 
-    covs ./ coalesce.(mean_lens,NaN)
-end
-
-# function normed_stg_midpts_covs( ex, cam, mids, stage_i; winlen=60, dwin=20 )
-#     covs, windows, t, irange = midpts_covs_for_stage( ex, cam, mids, stage_i )
-#
-#     midpts = mids(irange)
-#     normed_covs = normalize_covs( covs, midpts, windows )
-#     normed_covs, windows, t, irange
-# end
-#
-function normed_midpoint_covs(midpts, t, irange = axes(midpts,1); winlen=60, dwin=20)
-    covs, windows, _ = midpoint_covs( midpts, t, irange; winlen, dwin )
-    normed_covs = normalize_covs( covs, midpts, windows )
-    normed_covs, windows
+function normed_midpoint_covs( midpts, t, windows )
+    covs, _ = midpoint_covs( midpts, t, windows )
+    mean_lens = win_mean_curvelens( midpts, windows )
+    normed_covs = covs ./ coalesce.(mean_lens,NaN)
 end
 
 
@@ -85,3 +74,5 @@ function normal_speeds(midpts)
     #v_t = dot.(tangents, v)
     v_n = dot.(nrm, v)
 end
+
+normed_normal_speeds(midpts) = normal_speeds(midpts) ./ coalesce.(curvelen.(eachrow(midpts)), NaN)
