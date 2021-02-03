@@ -77,7 +77,28 @@ nfiles(path_f) = first( i for i in Iterators.countfrom(0)
 #                             if !isfile(path_f("corrd",i)) )
 
 using DataFrames
+using FileIO
 
+_coords_jld2_path(ex, cam, root) = joinpath(root, ex, cam, "coords_and_size.jld2")
+function _import_coords_jld2(ex, cam, root)
+    d = load(_coords_jld2_path(ex, cam, root))
+    @assert ex == d["ex"]
+    @assert cam == d["cam"]
+    d["traj"]
+end
+
+function load_coords_and_size(ex, cam, root)
+    jld2path = _coords_jld2_path(ex, cam, root)
+    if isfile(jld2path)
+        return _import_coords_jld2(ex, cam, root)
+    else
+        @info "No coords file at $jld2path. Loading from mat files."
+        df, _ = import_coords(joinpath(ex,cam), root; with_size=true)
+        return df
+    end
+end
+
+# Old API, importing directly from `mat` files:
 function import_coords( cameradir, datadir = datadir; with_size=false )
     path_f = filepath_f(cameradir, datadir)
     x = Union{Float64,Missing}[]
@@ -114,6 +135,8 @@ end
 _video_index(boundaries, frameno) = 0 < frameno <= last(boundaries) ?
                                     searchsortedfirst(boundaries,frameno) :
                                     nothing
+
+boundaries_from_traj(traj) = [searchsortedfirst(traj.fileno, i) - 1 for i in 1:traj.fileno[end]+1]
 
 const frames_per_s = 3
 

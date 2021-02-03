@@ -1,6 +1,7 @@
 module Elegans
 
-export import_coords, import_and_calc, loadstages, stage_names, stage_frames,
+export import_coords, import_and_calc, load_coords_and_size, 
+       loadstages, stage_names, stage_frames,
        VideoCache, get_frame, nframes, video_index,
        mark_stages_gui, mark_stages_window, frames_per_s,
        raw_worm_contours, worm_contour, curvature,
