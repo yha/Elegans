@@ -9,7 +9,7 @@ using Missings
 # TODO some functions here should be moved into the package
 function load_cam( root, ex, cam, contours_path, midpoints_path;
                     contour_method=Thresholding(1.0,0.34),
-                    headtail_method=SpeedHTCM(5,0), end_assignment_params=EndAssigmentParams() )
+                    headtail_method=Elegans.SpeedHTCM(5,0), end_assignment_params=Elegans.EndAssigmentParams() )
     relcam = joinpath(ex, cam)
     campath = joinpath(root, relcam)
     @assert isdir(campath)
@@ -25,63 +25,17 @@ function load_cam( root, ex, cam, contours_path, midpoints_path;
     (;traj, contours, mids, vcache, contours_file, midfile)
 end
 
-# used instead of skipmissing as a workaround for Statistics.jl issue #50
-nomiss(v) = disallowmissing(filter(!ismissing,v))
-_cov(x::AbstractVector{P}) where {N,T,P<:Point{N,T}} = isempty(x) ? fill(T(NaN),SMatrix{2,2}) : cov(x)
-
-function midpts_covs( midpts, t, irange; winlen=60, dwin=20 )
-    windows = [irange[i0+1:i0+winlen] for i0 in 0:dwin:length(irange)-winlen]
-    covs = [_cov(nomiss(midpts[i,j])) for i in windows, j in eachindex(t)]
-    covs, windows, t
-end
-
-function midpts_covs_for_stage( ex, cam, mids, stage_i; winlen=60, dwin=20, stagedict=loadstages() )
-
-    irange = stage_frames( ex, cam, stage_i; stagedict )
-    @info "$cam, stage $stage_i: frames $irange"
-    midpts = mids(irange)
-
-    t = mids.t
-
-    covs, windows, t = midpts_covs( midpts, t, irange; winlen, dwin )
-
-    (;covs, windows, t, irange)
-end
-
-
-function normalize_covs( covs, midpts, windows )
-    curvelen(pts) = sum(norm.(diff(pts)))
-    lens = curvelen.(eachrow(midpts))
-    mean_lens = [mean(lens[w]) for w in windows]
-
-    covs ./ coalesce.(mean_lens,NaN)
-end
-
-function normed_stg_midpts_covs( ex, cam, mids, stage_i; winlen=60, dwin=20 )
-    covs, windows, t, irange = midpts_covs_for_stage( ex, cam, mids, stage_i )
-
-    midpts = mids(irange)
-    normed_covs = normalize_covs( covs, midpts, windows )
-    normed_covs, windows, t, irange
-end
-
-function normed_midpts_covs(midpts, t, irange; winlen=60, dwin=20)
-    covs, windows, _ = midpts_covs( midpts, t, irange; winlen, dwin )
-    normed_covs = normalize_covs( covs, midpts, windows )
-    normed_covs, windows
-end
-
 # for use when saved midpoints are already available
-function cam_ncovs( ex, cam, stage_i, midpoints_path;
+function cam_ncovs( ex, cam, midpoints_path;
                     contour_method=Thresholding(1.0,0.34), headtail_method=Elegans.SpeedHTCM(5,0),
                     winlen=60, dwin=20, t=0:0.025:1 )
 #    @info "Loading midpoints for $ex: $cam"
     midsdict = Elegans.load_midpoints( Elegans.midpoints_filename( ex, cam, t;
                                 midpoints_path, contour_method, headtail_method,
                                 end_assignment_params=Elegans.EndAssigmentParams() ) )
-    irange = stage_frames( ex, cam, stage_i )
 #    @info "Computing normalized midline covariances ($ex: $cam)"
-    Dict((irange, normed_midpts_covs(midpts,t,irange; winlen, dwin)) for (irange,midpts) in midsdict)
+    Dict(irange => normed_midpoint_covs( midpts, t, Elegans.make_windows(irange, winlen, dwin) ) 
+                for (irange,midpts) in midsdict)
 end
 
 # for use when saved midpoints may not be available
@@ -100,19 +54,3 @@ function cam_ncovs_full( root, ex, cam, stage_i, contours_path, midpoints_path;
 end
 
 ##
-
-const newaxis = [CartesianIndex()]
-const newaxis_c = OffsetVector([CartesianIndex()],0:0)
-function normal_speeds(midpts)
-    d = centered([-1/2,0,1/2]) # derivative
-
-    midpts_nan = replace(midpts, missing=>Elegans.missingpoint)
-    # tangents pointing towards tail
-    tangents = normalize.(imfilter(midpts_nan, d[newaxis_c,:]))
-    # normals pointing to the worm's right
-    nrm = [[-p[2],p[1]] for p in tangents]
-
-    v = imfilter(midpts_nan, d[:,newaxis_c])
-    #v_t = dot.(tangents, v)
-    v_n = dot.(nrm, v)
-end
