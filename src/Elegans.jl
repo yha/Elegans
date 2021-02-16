@@ -33,7 +33,6 @@ include("midline.jl")
 include("shape.jl")
 include("peaks.jl")
 include("videocache.jl")
-include("caching.jl")
 include("end_trajs.jl")
 include("roam_fraction.jl")
 include("video_output.jl")
@@ -42,6 +41,7 @@ include("headtail/lsr.jl")
 include("headtail/traj_stats.jl")
 include("headtail/headtail_traj.jl")
 include("midpoints/midpoints.jl")
+include("caching.jl")
 
 
 end # module

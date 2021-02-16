@@ -120,6 +120,8 @@ const default_midpoints_path = joinpath(datadir,"midpoints")
 
 as_tuple(x::T) where T = NamedTuple{fieldnames(T)}(tuple((getfield(x,i) for i in 1:fieldcount(T))...))
 
+const default_headtail_method = SpeedHTCM(5,0)
+
 function midpoints_filename( ex, cam, t=0:0.025:1; midpoints_path=default_midpoints_path,
         contour_method, headtail_method, end_assignment_params )
     camname = replace( cam,  r"[\\/]" => "-" )
@@ -131,18 +133,6 @@ end
 
 save_midpoints(midpts, filename) = save(filename, Dict("midpoints"=>midpts.cache))
 
-const MaybePoint2F = Union{Missing, Point2{Float64}}
-const Midpoints = OffsetArray{MaybePoint2F,2,Matrix{MaybePoint2F}}
-
-function midpoint_cache( traj, contours, t=0:0.025:1;
-                headtail_method=SpeedHTCM(5,0), end_assignment_params=EndAssigmentParams())
-    cache = Dict{UnitRange,Midpoints}()
-    irange -> get!(cache,irange) do
-        range_midpoints( traj, contours, irange, t, headtail_method, end_assignment_params  )
-    end
-end
-
-
 function load_midpoints( midpoints_file )
     @info "Loading cached midpoints from $midpoints_file ..."
     @time d = load(midpoints_file)
@@ -153,10 +143,22 @@ function load_midpoints( midpoints_file )
 end
 
 
+const MaybePoint2F = Union{Missing, Point2{Float64}}
+const Midpoints = OffsetArray{MaybePoint2F,2,Matrix{MaybePoint2F}}
+
+function midpoint_cache( traj, contours, t=0:0.025:1;
+                headtail_method = default_headtail_method, end_assignment_params = EndAssigmentParams())
+    cache = Dict{UnitRange,Midpoints}()
+    irange -> get!(cache,irange) do
+        range_midpoints( traj, contours, irange, t, headtail_method, end_assignment_params  )
+    end
+end
+
+
 # TODO have contour_method stored with contours
 function init_midpoints( ex, cam, traj, contours, t=0:0.025:1;
                         contour_method, midpoints_path = default_midpoints_path,
-                        headtail_method=SpeedHTCM(5,0), end_assignment_params=EndAssigmentParams() )
+                        headtail_method = default_headtail_method, end_assignment_params=EndAssigmentParams() )
     mids = midpoint_cache(traj, contours, t; headtail_method, end_assignment_params)
 
     midpoints_file = midpoints_filename( ex, cam, t; midpoints_path, contour_method, headtail_method, end_assignment_params )
@@ -166,4 +168,29 @@ function init_midpoints( ex, cam, traj, contours, t=0:0.025:1;
         merge!(mids.cache, stored_midpoints)
     end
     mids, midpoints_file
+end
+
+"""
+    load_cam_midpoints(ex, cam, s, contour_methods, iranges = nothing; 
+                        midpoints_path, headtail_method, end_assignment_params = EndAssigmentParams())
+Load midpoints for different contouring methods (different files) and merge into a single dict.
+`contour_methods` is a dict mapping stage to contouring method.
+If `iranges` is given, verify that the loaded ranges match the given ranges.
+"""
+function load_cam_midpoints(ex, cam, s, contour_methods, iranges = nothing; 
+                        midpoints_path, headtail_method = default_headtail_method, end_assignment_params = EndAssigmentParams())
+    method2stages = Dict( m => [k for (k,v) in contour_methods if v == m] for m in unique(values(contour_methods)) )
+    mids_dicts = Dict( m => load_midpoints( midpoints_filename( ex, cam, s;
+                                contour_method = m,
+                                midpoints_path, headtail_method,
+                                end_assignment_params ) )
+                        for m in keys(method2stages) )
+    if iranges !== nothing
+        for (m,d) in mids_dicts
+            loaded = sort!(collect(keys(d)))
+            expected = sort!([iranges[k] for k in method2stages[m]])
+            loaded == expected || error("Expected ranges $expected, Found $loaded (method $m).")
+        end
+    end
+    reduce(merge, values(mids_dicts))
 end
