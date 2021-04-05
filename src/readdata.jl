@@ -39,15 +39,6 @@ function readframes( path_f, idx )
     [colorview(RGB, normedview(permuteddimsview(fr,(3,1,2)))) for fr in frames]
 end
 
-function _readall!(f, firstframe)
-    out = [firstframe]
-    while !eof(f)
-        push!(out, read(f))
-    end
-    out
-end
-_readall!(f) = _readall!(f,read(f))
-
 function video_prefix( cameradir, datadir = datadir )
     files = readdir(joinpath( datadir, cameradir ))
     path, dir = splitdir(cameradir)
@@ -63,14 +54,7 @@ function videopath_f( cameradir, datadir = datadir )
     idx -> "$datadir/$cameradir/shape$pr$(string(idx;pad=4)).mp4"
 end
 
-function read_video(path_f, idx)
-    vid = openvideo(path_f(idx))
-    try
-        _readall!(vid)
-    finally
-        close(vid)
-    end
-end
+read_video(path_f, idx) = VideoIO.load(path_f(idx))
 
 nfiles(path_f) = first( i for i in Iterators.countfrom(0)
                              if !isfile(path_f("coord",i)) )
