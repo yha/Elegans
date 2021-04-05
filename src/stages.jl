@@ -12,10 +12,12 @@ savestages(stages, stagefile=stages_filepath) = atomic_write( stagefile ) do io
 end
 #appendstages(stages...) = open( io->TOML.print(io,Dict(stages)), stages_filepath, "a" )
 
-function stage_frames( ex, cam, stage_i; stagedict=loadstages() )
+function stage_frames( ex, cam, stage; stagedict=loadstages() )
     stage_boundaries = stagedict[ex][cam]
-    return stage_boundaries[stage_i]+1:stage_boundaries[stage_i+1]
+    return stage_boundaries[stage]+1:stage_boundaries[stage+1]
 end
+
+nstages( ex, cam; stagedict=loadstages() ) = length(stagedict[ex][cam]) - 1
 
 ## Loading of stages saved by MATLAB script (separate_to_developmental_stages.m)
 
@@ -24,9 +26,12 @@ using MAT
 struct OldMATFormat end
 struct NewMATFormat end
 
+# regex-string multiplication seems to be the only official way to escape a regex currently.
+# see https://github.com/JuliaLang/julia/issues/6124
+escape_regex(str, flags="") = Regex("", flags) * str
 
 function boundary_file( camname, stages_path )
-    boundary_files = filter(fname -> endswith(fname, "stages.mat") && startswith(fname, Regex("coord$camname","i")),
+    boundary_files = filter(fname -> endswith(fname, "stages.mat") && startswith(fname, escape_regex("coord$camname","i")),
                             readdir(stages_path))
     isempty(boundary_files) && error("No stage boundaries file found for cam $camname")
     length(boundary_files) > 1 && error("Multiple ($(length(boundary_files))) stage boundaries file found for cam $camname")
@@ -42,7 +47,7 @@ function get_stage_boundaries_new_fmt( camname, stages_path, file_boundaries )
 end
 
 function get_stage_boundaries_old_fmt( camname, mat_path, file_boundaries )
-    cam_coord_files = filter(fname->startswith(fname, Regex("coord\\Q$camname\\E","i")),
+    cam_coord_files = filter(fname->startswith(fname, escape_regex("coord$camname","i")),
                              readdir(mat_path))
     nstages = length(stage_names)
     stage_starts = Vector{Int}(undef, nstages)
