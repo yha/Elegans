@@ -1,7 +1,7 @@
 include("funcs.jl")
 using Statistics
 
-using DSP
+#using DSP
 
 function calc_stats!(traj, dframes)
     dt = dframes / frames_per_s
