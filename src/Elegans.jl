@@ -1,6 +1,6 @@
 module Elegans
 
-export import_coords, import_and_calc, load_coords_and_size, 
+export Well, import_coords, import_and_calc, load_coords_and_size, 
        loadstages, stage_names, stage_frames,
        VideoCache, get_frame, nframes, video_index,
        mark_stages_gui, mark_stages_window, frames_per_s,
@@ -26,6 +26,7 @@ export import_coords, import_and_calc, load_coords_and_size,
        try_return, passex, missex
 
 include("utils.jl")
+include("readdata.jl")
 include("mark_stages.jl")
 include("contour.jl")
 include("segment_contour.jl")

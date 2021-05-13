@@ -5,14 +5,11 @@ struct VideoCache{F}
     boundaries::Vector{Int}
     cache::LRU{Int,Any}
 
-    # TODO change signature to (ex, cam, datadir) to allow using `load_coords_and_size`
-    function VideoCache( cam, datadir = Elegans.datadir; traj = nothing, maxsize = 20 )
-        path_f = Elegans.videopath_f(cam, datadir)
-        if traj === nothing
-            _, boundaries = import_coords(cam, datadir)
-        else
-            boundaries = boundaries_from_traj(traj)
-        end
+    @deprecate VideoCache(well,datadir) VideoCache(Well(datadir, splitdir(well)...))
+    function VideoCache( well::Well; traj = load_coords_and_size(well), maxsize = 20 )
+        relwell = joinpath(well.experiment, well.well)
+        path_f = Elegans.videopath_f(relwell, well.root)
+        boundaries = boundaries_from_traj(traj)
         cache = LRU{Int,Any}( maxsize = maxsize )
         new{typeof(path_f)}( path_f, boundaries, cache )
     end

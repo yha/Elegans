@@ -1,3 +1,11 @@
+## regex
+
+# regex-string multiplication seems to be the only official way to escape a regex currently.
+# see https://github.com/JuliaLang/julia/issues/6124
+escape_regex(str, flags="") = Regex("", flags) * str
+# concatenating empty regex to capture flags into the regex string
+escape_regex_str(str, flags="") = (escape_regex(str, flags) * Regex("")).pattern
+
 ## group_pairwise
 
 import IterTools

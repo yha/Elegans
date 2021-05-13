@@ -12,9 +12,9 @@ function isroaming(traj, rows, slope)
     _isroaming.(smspeed, smdangle, slope)
 end
 
-function roam_for_stage(ex, cam, traj, stage; stagedict=loadstages())
+function roam_for_stage(ex, well, traj, stage; stagedict=loadstages())
     slope = roaming_slope_per_stage[stage]
-    idxs = stagedict[ex][cam]
+    idxs = stagedict[ex][well]
     rows = idxs[stage]+1:idxs[stage+1]
     isroaming(traj, rows, slope)
 end

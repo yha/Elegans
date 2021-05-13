@@ -12,12 +12,15 @@ savestages(stages, stagefile=stages_filepath) = atomic_write( stagefile ) do io
 end
 #appendstages(stages...) = open( io->TOML.print(io,Dict(stages)), stages_filepath, "a" )
 
-function stage_frames( ex, cam, stage; stagedict=loadstages() )
-    stage_boundaries = stagedict[ex][cam]
+stage_frames( well::Well, stage; stagedict=loadstages() ) = stage_frames(
+                                        well.experiment, well.well, stage; stagedict)
+
+function stage_frames( ex, well, stage; stagedict=loadstages() )
+    stage_boundaries = stagedict[ex][well]
     return stage_boundaries[stage]+1:stage_boundaries[stage+1]
 end
 
-nstages( ex, cam; stagedict=loadstages() ) = length(stagedict[ex][cam]) - 1
+nstages( ex, well; stagedict=loadstages() ) = length(stagedict[ex][well]) - 1
 
 ## Loading of stages saved by MATLAB script (separate_to_developmental_stages.m)
 
@@ -25,10 +28,6 @@ using MAT
 
 struct OldMATFormat end
 struct NewMATFormat end
-
-# regex-string multiplication seems to be the only official way to escape a regex currently.
-# see https://github.com/JuliaLang/julia/issues/6124
-escape_regex(str, flags="") = Regex("", flags) * str
 
 function boundary_file( camname, stages_path )
     boundary_files = filter(fname -> endswith(fname, "stages.mat") && startswith(fname, escape_regex("coord$camname","i")),

@@ -1,22 +1,56 @@
 using MAT
 using VideoIO
 using Images
+using ProgressLogging
 
 #const datadir = "D:/"
-const datadir = normpath("$(@__DIR__)/../data")
+#const datadir = normpath("$(@__DIR__)/../data")
 
-function prefix( cameradir, datadir = datadir )
-    files = readdir(joinpath( datadir, cameradir ))
-    path, dir = splitdir(cameradir)
-    matches = [match( Regex(".*($(dir).*?)\\d+.mat", "i"), f ) for f in files]
+# TODO 
+# remove older "filepath_f" interface and cleanup
+
+struct Well
+    # separate `root`, `experiment` and `well` components are used in addition to full path,
+    # for easier sanity checking e.g. in _import_coords_jld2
+    root::String
+    experiment::String
+    well::String
+    path::String # == joinpath(root, experiment, well)
+    mat_prefix::String
+    video_prefix::Union{String, Nothing}
+    function Well( root, experiment, well ) 
+        fullpath = joinpath( root, experiment, well )
+        new(root, experiment, well, fullpath, prefix(fullpath), video_prefix(fullpath))
+    end     
+end
+
+load_coords_and_size(well::Well) = load_coords_and_size( well.experiment, well.well, well.root )
+load_video( well::Well, idx ) = if isnothing(video_prefix)
+    @info "No videos found. Looking for short*.mat files"
+    readframes( (type,i) -> _filepath( well.path, well.mat_prefix, :short, i ),
+                idx )
+else
+    VideoIO.load( _videopath( well.path, well.video_prefix, idx ) )
+end
+
+function prefix(welldir)
+    #isnothing(datadir) || (welldir = joinpath( datadir, welldir ))
+    files = readdir(welldir)
+    path, dir = splitdir(welldir)
+    regex = Regex(".*($(escape_regex_str(dir)).*?)\\d+.mat", "i")
+    matches = [match( regex, f ) for f in files]
     prefixes = Set( m[1] for m in matches if m !== nothing )
-    length(prefixes) > 1 && error("More than one prefix in dir $(dir). Prefixes:\n$(join(prefixes,"\n"))")
+    length(prefixes) > 1 && error("More than one prefix in dir $welldir. Prefixes:\n$(join(prefixes,"\n"))")
+    isempty(prefixes) && error("No mat files found in $welldir matching $regex.")
     first(prefixes)
 end
 
-function filepath_f( cameradir, datadir = datadir )
-    pr = prefix( cameradir, datadir )
-    (type, idx) -> "$datadir/$cameradir/$type$pr$(string(idx;pad=4)).mat"
+# `datadir` argument kept for backwards compatibility
+_filepath( welldir, pr, type, idx ) = "$welldir/$type$pr$(string(idx;pad=4)).mat"
+function filepath_f( welldir, datadir = nothing )
+    isnothing(datadir) || (welldir = joinpath( datadir, welldir ))
+    pr = prefix(welldir)
+    (type, idx) -> _filepath( welldir, pr, type, idx )
 end
 
 #filetypes = [(:coords, "corrd", "x_y_coor"),
@@ -39,19 +73,24 @@ function readframes( path_f, idx )
     [colorview(RGB, normedview(permuteddimsview(fr,(3,1,2)))) for fr in frames]
 end
 
-function video_prefix( cameradir, datadir = datadir )
-    files = readdir(joinpath( datadir, cameradir ))
-    path, dir = splitdir(cameradir)
+function video_prefix(welldir)
+    files = readdir(welldir)
+    path, dir = splitdir(welldir)
     dir = chop(dir,tail=2)
-    matches = [match( Regex("shape($(dir).*?)\\d+.mp4", "i"), f ) for f in files]
+    matches = [match( Regex("shape($(escape_regex_str(dir)).*?)\\d+.mp4", "i"), f ) for f in files]
     prefixes = Set( m[1] for m in matches if m !== nothing )
     length(prefixes) > 1 && error("More than one prefix in dir $(dir)")
-    first(prefixes)
+    isempty(prefixes) ? 
+        nothing :
+        first(prefixes)
 end
 
-function videopath_f( cameradir, datadir = datadir )
-    pr = video_prefix( cameradir, datadir )
-    idx -> "$datadir/$cameradir/shape$pr$(string(idx;pad=4)).mp4"
+# `datadir` argument kept for backwards compatibility
+_videopath( welldir, pr, idx ) = "$welldir/shape$pr$(string(idx;pad=4)).mp4"
+function videopath_f( welldir, datadir = nothing )
+    isnothing(datadir) || (welldir = joinpath( datadir, welldir ))
+    pr = video_prefix(welldir)
+    idx -> _videopath( welldir, pr, idx )
 end
 
 read_video(path_f, idx) = VideoIO.load(path_f(idx))
@@ -63,36 +102,36 @@ nfiles(path_f) = first( i for i in Iterators.countfrom(0)
 using DataFrames
 using FileIO
 
-_coords_jld2_path(ex, cam, root) = joinpath(root, ex, cam, "coords_and_size.jld2")
-function _import_coords_jld2(ex, cam, root)
-    d = load(_coords_jld2_path(ex, cam, root))
+_coords_jld2_path(wellpath) = joinpath(wellpath, "coords_and_size.jld2")
+_coords_jld2_path(ex, well, root) = _coords_jld2_path(joinpath(root, ex, well))
+function _import_coords_jld2(ex, well, jld2path)
+    d = load(jld2path)
     @assert ex == d["ex"]
-    @assert cam == d["cam"]
+    @assert well == d["cam"]
     d["traj"]
 end
 
-function load_coords_and_size(ex, cam, root)
-    jld2path = _coords_jld2_path(ex, cam, root)
+function load_coords_and_size(ex, well, root)
+    jld2path = _coords_jld2_path(ex, well, root)
     if isfile(jld2path)
-        return _import_coords_jld2(ex, cam, root)
+        return _import_coords_jld2(ex, well, jld2path)
     else
         @info "No coords file at $jld2path. Loading from mat files."
-        df, _ = import_coords(joinpath(ex,cam), root; with_size=true)
+        df, _ = import_coords(joinpath(ex,well), root; with_size=true)
         return df
     end
 end
 
 # Old API, importing directly from `mat` files:
-function import_coords( cameradir, datadir = datadir; with_size=false )
-    path_f = filepath_f(cameradir, datadir)
+function import_coords( welldir, datadir = nothing; with_size=false )
+    path_f = filepath_f(welldir, datadir)
     x = Union{Float64,Missing}[]
     y = Union{Float64,Missing}[]
     with_size && (sz = Union{Float64,Missing}[])
     fileno = Int[]
     batch_boundaries = Int[]
     n = 0
-    #@progress "Importing"
-    for i in 0:nfiles(path_f)-1
+    @progress "Importing .mat files from $welldir" for i in 0:nfiles(path_f)-1
         coords = read_coords(path_f,i)
         if size(coords,1) == 2 && size(coords,2) > 2
             coords = coords'

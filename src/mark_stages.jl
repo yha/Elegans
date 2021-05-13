@@ -2,7 +2,6 @@ import TOML
 #yield() # workaround Juno.jl bug #316, for running as a Juno cell
 
 include("stages.jl")
-include("readdata.jl")
 include("speed_and_angle.jl")
 
 using StatsBase: ecdf

@@ -40,8 +40,7 @@ using ProgressLogging: @progress
 #              a::CircularVector{GeometryTypes.Point{N,T}}) where {N,T} = CircularVector(GeometryBasics.Point.(a))
 
 
-#contours_path = "\\\\132.68.111.44\\LabData\\yharel\\contours"
-const default_contours_path = joinpath(datadir,"contours")
+#const default_contours_path = joinpath(datadir,"contours")
 const ContourVec = Vector{Closed2DCurve{Float64}}
 
 function frame_contours( vcache, i, method )
@@ -59,7 +58,7 @@ contour_cache( videocache, method) = trying_cache(
 contours_methodname(m::Thresholding) = "$(m.level)-$(m.σ)"
 contours_methodname(m::ContouringMethod) = string(m)
 
-function contours_filename(cam, method, contours_path = default_contours_path )
+function contours_filename(cam, method, contours_path )
     camname = replace( cam,  r"[\\/]" => "-" )
     m = contours_methodname(method)
     contours_file = joinpath(contours_path,"contours-$m-$camname.jld2")
@@ -90,12 +89,13 @@ function load_contours( contours_file, vcache )
     stored_contours
 end
 
-function init_contours( cam, root, method, contours_path = default_contours_path )
-    @info "Initializing video cache ($(joinpath(root, cam)))..."
-    vcache = VideoCache(cam,root)
+function init_contours( well, method, contours_path )
+    @info "Initializing video cache ($(well.path))..."
+    vcache = VideoCache(well)
     contours = contour_cache(vcache,method)
 
-    contours_file = contours_filename( cam, method, contours_path )
+    contours_file = contours_filename( joinpath(well.experiment, well.well), 
+                                        method, contours_path )
 
     if isfile(contours_file)
         stored_contours = load_contours( contours_file, vcache )
@@ -108,7 +108,7 @@ end
 # @save contours_file contours=contours.cache
 save_contours(contours, contours_file) = save(contours_file, Dict("contours"=>contours.cache))
 
-function compute_all_contours( ex, root, th, g, contours_path = default_contours_path )
+function compute_all_contours( ex, root, th, g, contours_path )
     contours, contours_file, vcache = init_contours(ex, root, th, g, contours_path)
     @progress "computing contours" cont = [contours(i) for i = 1:nframes(vcache)]
     contours, contours_file, vcache
@@ -116,13 +116,13 @@ end
 
 ## Midpoints cache
 
-const default_midpoints_path = joinpath(datadir,"midpoints")
+#const default_midpoints_path = joinpath(datadir,"midpoints")
 
 as_tuple(x::T) where T = NamedTuple{fieldnames(T)}(tuple((getfield(x,i) for i in 1:fieldcount(T))...))
 
 const default_headtail_method = SpeedHTCM(5,0)
 
-function midpoints_filename( ex, cam, t=0:0.025:1; midpoints_path=default_midpoints_path,
+function midpoints_filename( ex, cam, t=0:0.025:1; midpoints_path,
         contour_method, headtail_method, end_assignment_params )
     camname = replace( cam,  r"[\\/]" => "-" )
     cm = contours_methodname(contour_method)
@@ -157,7 +157,7 @@ end
 
 # TODO have contour_method stored with contours
 function init_midpoints( ex, cam, traj, contours, t=0:0.025:1;
-                        contour_method, midpoints_path = default_midpoints_path,
+                        contour_method, midpoints_path,
                         headtail_method = default_headtail_method, end_assignment_params=EndAssigmentParams() )
     mids = midpoint_cache(traj, contours, t; headtail_method, end_assignment_params)
 
