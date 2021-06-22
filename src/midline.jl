@@ -101,14 +101,14 @@ anglevec_by_thinning(image, s=0:0.025:1, g=0,
                      th=default_threshold(image)) = spline_anglevec(
                 line2spline(imfilter(midline_by_thinning(image,th),Kernel.gaussian((g,)))), s)
 
-import DSP
+# import DSP
 
-function spline_anglevec(spl, s=0:0.025:1)
-    x, y = collect(eachrow(spl(s)))
-    dx, dy = diff(x), diff(y)
-    θ = DSP.unwrap(atan.(dy,dx))
-#    θ .-= mean(θ)
-end
+# function spline_anglevec(spl, s=0:0.025:1)
+#     x, y = collect(eachrow(spl(s)))
+#     dx, dy = diff(x), diff(y)
+#     θ = DSP.unwrap(atan.(dy,dx))
+# #    θ .-= mean(θ)
+# end
 
 ## caching
 
