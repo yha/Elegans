@@ -89,9 +89,9 @@ function load_contours( contours_file, vcache )
     stored_contours
 end
 
-function init_contours( well, method, contours_path )
+function init_contours( well, method, contours_path; traj=load_coords_and_size(well) )
     @info "Initializing video cache ($(well.path))..."
-    vcache = VideoCache(well)
+    vcache = VideoCache(well; traj)
     contours = contour_cache(vcache,method)
 
     contours_file = contours_filename( joinpath(well.experiment, well.well), 
