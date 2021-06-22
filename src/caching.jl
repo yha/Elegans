@@ -58,10 +58,10 @@ contour_cache( videocache, method) = trying_cache(
 contours_methodname(m::Thresholding) = "$(m.level)-$(m.σ)"
 contours_methodname(m::ContouringMethod) = string(m)
 
-function contours_filename(cam, method, contours_path )
-    camname = replace( cam,  r"[\\/]" => "-" )
+function contours_filename(well_relpath, method, contours_path )
+    wellname = replace( well_relpath,  r"[\\/]" => "-" )
     m = contours_methodname(method)
-    contours_file = joinpath(contours_path,"contours-$m-$camname.jld2")
+    contours_file = joinpath(contours_path,"contours-$m-$wellname.jld2")
 end
 
 function load_contours( contours_file, vcache )
@@ -122,13 +122,13 @@ as_tuple(x::T) where T = NamedTuple{fieldnames(T)}(tuple((getfield(x,i) for i in
 
 const default_headtail_method = SpeedHTCM(5,0)
 
-function midpoints_filename( ex, cam, t=0:0.025:1; midpoints_path,
+function midpoints_filename( ex, well, t=0:0.025:1; midpoints_path,
         contour_method, headtail_method, end_assignment_params )
-    camname = replace( cam,  r"[\\/]" => "-" )
+    wellname = replace( well,  r"[\\/]" => "-" )
     cm = contours_methodname(contour_method)
     m = as_tuple(headtail_method)
     p = as_tuple(end_assignment_params)
-    contours_file = joinpath(midpoints_path,"midpoints-$ex-$camname $cm $m $p.jld2")
+    joinpath(midpoints_path,"midpoints-$ex-$wellname $cm $m $p.jld2")
 end
 
 save_midpoints(midpts, filename) = save(filename, Dict("midpoints"=>midpts.cache))
@@ -140,6 +140,12 @@ function load_midpoints( midpoints_file )
     n, n_err = length(stored_midpoints), count((!isa).(values(stored_midpoints),Midpoints))
     @info "... midpoints for $(n-n_err) stages loaded ($n_err errors)"
     stored_midpoints
+end
+
+function load_midpoints( well::Well, t; midpoints_path, contour_method, 
+                            headtail_method = default_headtail_method, end_assignment_params=EndAssigmentParams() )
+    midpoints_file = midpoints_filename( well.experiment, well.well, t; midpoints_path, contour_method, headtail_method, end_assignment_params )
+    load_midpoints( midpoints_file )
 end
 
 
@@ -155,13 +161,14 @@ function midpoint_cache( traj, contours, t=0:0.025:1;
 end
 
 
+
 # TODO have contour_method stored with contours
-function init_midpoints( ex, cam, traj, contours, t=0:0.025:1;
+function init_midpoints( well, traj, contours, t=0:0.025:1;
                         contour_method, midpoints_path,
                         headtail_method = default_headtail_method, end_assignment_params=EndAssigmentParams() )
     mids = midpoint_cache(traj, contours, t; headtail_method, end_assignment_params)
 
-    midpoints_file = midpoints_filename( ex, cam, t; midpoints_path, contour_method, headtail_method, end_assignment_params )
+    midpoints_file = midpoints_filename( well.experiment, well.well, t; midpoints_path, contour_method, headtail_method, end_assignment_params )
 
     if isfile(midpoints_file)
         stored_midpoints = load_midpoints( midpoints_file )

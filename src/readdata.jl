@@ -36,8 +36,8 @@ end
 function prefix(welldir)
     #isnothing(datadir) || (welldir = joinpath( datadir, welldir ))
     files = readdir(welldir)
-    path, dir = splitdir(welldir)
-    regex = Regex(".*($(escape_regex_str(dir)).*?)\\d+.mat", "i")
+    _, wellname = splitdir(welldir)
+    regex = Regex(".*($(escape_regex_str(wellname)).*?)\\d+.mat", "i")
     matches = [match( regex, f ) for f in files]
     prefixes = Set( m[1] for m in matches if m !== nothing )
     length(prefixes) > 1 && error("More than one prefix in dir $welldir. Prefixes:\n$(join(prefixes,"\n"))")
