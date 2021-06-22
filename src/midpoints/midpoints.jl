@@ -23,7 +23,7 @@ end
 
 # used instead of skipmissing as a workaround for Statistics.jl issue #50
 nomiss(v) = disallowmissing(filter(!ismissing,v))
-_cov(x::AbstractVector{P}) where {N,T,P<:Point{N,T}} = isempty(x) ? fill(T(NaN),SMatrix{2,2}) : cov(x)
+_cov(x::AbstractVector{P}) where {N,T,P<:Point{N,T}} = isempty(x) ? fill(T(NaN),SMatrix{N,N}) : cov(x)
 
 function make_windows(irange, winlen=60, dwin=20)
     fi = firstindex(irange)
