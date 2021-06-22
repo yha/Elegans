@@ -24,8 +24,8 @@ struct Well
     end     
 end
 
-load_coords_and_size(well::Well) = load_coords_and_size( well.experiment, well.well, well.root )
-load_video( well::Well, idx ) = if isnothing(video_prefix)
+load_coords_and_size(well::Well; err_on_wrong_well=true) = load_coords_and_size( well.experiment, well.well, well.root; err_on_wrong_well )
+load_video( well::Well, idx ) = if isnothing(well.video_prefix)
     @info "No videos found. Looking for short*.mat files"
     readframes( (type,i) -> _filepath( well.path, well.mat_prefix, :short, i ),
                 idx )
@@ -104,17 +104,23 @@ using FileIO
 
 _coords_jld2_path(wellpath) = joinpath(wellpath, "coords_and_size.jld2")
 _coords_jld2_path(ex, well, root) = _coords_jld2_path(joinpath(root, ex, well))
-function _import_coords_jld2(ex, well, jld2path)
+function _import_coords_jld2(ex, well, jld2path; err_on_wrong_well)
+    @info "Loading coordinates from $jld2path"
     d = load(jld2path)
-    @assert ex == d["ex"]
-    @assert well == d["cam"]
+    if err_on_wrong_well
+        @assert ex == d["ex"]
+        @assert well == d["well"]
+    end
+    _ex, _well = get(d, "ex", nothing), get(d, "well", nothing)
+    _ex == ex || @warn "Wrong experiment name: expected $(repr(ex)), found $(repr(_ex))."
+    _well == well || @warn "Wrong well name: expected $(repr(well)), found $(repr(_well))."
     d["traj"]
 end
 
-function load_coords_and_size(ex, well, root)
+function load_coords_and_size(ex, well, root; err_on_wrong_well=true)
     jld2path = _coords_jld2_path(ex, well, root)
     if isfile(jld2path)
-        return _import_coords_jld2(ex, well, jld2path)
+        return _import_coords_jld2(ex, well, jld2path; err_on_wrong_well)
     else
         @info "No coords file at $jld2path. Loading from mat files."
         df, _ = import_coords(joinpath(ex,well), root; with_size=true)
