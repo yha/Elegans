@@ -12,12 +12,14 @@ savestages(stages, stagefile=stages_filepath) = atomic_write( stagefile ) do io
 end
 #appendstages(stages...) = open( io->TOML.print(io,Dict(stages)), stages_filepath, "a" )
 
-stage_frames( well::Well, stage; stagedict=loadstages() ) = stage_frames(
-                                        well.experiment, well.well, stage; stagedict)
+stage_frames( well::Well, stage::Integer; stagedict=loadstages() ) = stage_frames(
+                                        well, stage:stage; stagedict)
+stage_frames( well::Well, stages::AbstractUnitRange; stagedict=loadstages() ) = _stage_frames(
+                                        well.experiment, well.well, stages; stagedict)
 
-function stage_frames( ex, well, stage; stagedict=loadstages() )
+function _stage_frames( ex, well, stages::AbstractUnitRange; stagedict )
     stage_boundaries = stagedict[ex][well]
-    return stage_boundaries[stage]+1:stage_boundaries[stage+1]
+    return stage_boundaries[first(stages)]+1:stage_boundaries[last(stages)+1]
 end
 
 nstages( ex, well; stagedict=loadstages() ) = length(stagedict[ex][well]) - 1
