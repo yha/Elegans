@@ -31,30 +31,33 @@ using MAT
 struct OldMATFormat end
 struct NewMATFormat end
 
-function boundary_file( camname, stages_path )
-    boundary_files = filter(fname -> endswith(fname, "stages.mat") && startswith(fname, escape_regex("coord$camname","i")),
-                            readdir(stages_path))
-    isempty(boundary_files) && error("No stage boundaries file found for cam $camname")
-    length(boundary_files) > 1 && error("Multiple ($(length(boundary_files))) stage boundaries file found for cam $camname")
+find_boundary_files( wellname, stages_path ) = filter(readdir(stages_path)) do fname
+    endswith(fname, "stages.mat") && startswith(fname, escape_regex("coord$wellname","i"))
+end
+
+function boundary_file( wellname, stages_path )
+    boundary_files = find_boundary_files( wellname, stages_path )
+    isempty(boundary_files) && error("No stage boundaries file found for well $wellname")
+    length(boundary_files) > 1 && error("Multiple ($(length(boundary_files))) stage boundaries file found for well $wellname")
     first(boundary_files)
 end
 
-function get_stage_boundaries_new_fmt( camname, stages_path, file_boundaries )
-    boundspath = joinpath(stages_path, boundary_file(camname, stages_path))
+function get_stage_boundaries_new_fmt( wellname, stages_path, file_boundaries )
+    boundspath = joinpath(stages_path, boundary_file(wellname, stages_path))
     stage_boundaries, file_start = matopen(boundspath) do file
         read(file, "boundaries", "file_start")
     end
     file_boundaries[Int(file_start)-1] .+ Int.(stage_boundaries)[1,:]
 end
 
-function get_stage_boundaries_old_fmt( camname, mat_path, file_boundaries )
-    cam_coord_files = filter(fname->startswith(fname, escape_regex("coord$camname","i")),
+function get_stage_boundaries_old_fmt( wellname, mat_path, file_boundaries )
+    well_coord_files = filter(fname->startswith(fname, escape_regex("coord$wellname","i")),
                              readdir(mat_path))
     nstages = length(stage_names)
     stage_starts = Vector{Int}(undef, nstages)
     stage_ends = Vector{Int}(undef, nstages)
     for (i, stage_name) in enumerate(stage_names)
-        stage_file = only(filter(fname->endswith(fname, "$stage_name.mat"), cam_coord_files))
+        stage_file = only(filter(fname->endswith(fname, "$stage_name.mat"), well_coord_files))
         mat_data = matopen(joinpath(mat_path,stage_file)) do file
             read(file, "coord_$stage_name")
         end
@@ -79,15 +82,15 @@ end
 get_stage_boundaries(::NewMATFormat, args...) = get_stage_boundaries_new_fmt(args...)
 get_stage_boundaries(::OldMATFormat, args...) = get_stage_boundaries_old_fmt(args...)
 
-function getstages!( ex, cam, stages_path, file_boundaries, allstages=loadstages(); mat_fmt=NewMATFormat())
-    camstages = get( get!( allstages, ex, Dict() ), cam, nothing )
-    if camstages === nothing
-        @info "retrieving and storing stages for $ex/$cam from $stages_path"
-        camstages = get_stage_boundaries( mat_fmt, cam, stages_path, file_boundaries )
-        allstages[ex][cam] = camstages
+function getstages!( ex, wellname, stages_path, file_boundaries, allstages=loadstages(); mat_fmt=NewMATFormat())
+    wellstages = get( get!( allstages, ex, Dict() ), wellname, nothing )
+    if wellstages === nothing
+        @info "retrieving and storing stages for $ex/$wellname from $stages_path"
+        wellstages = get_stage_boundaries( mat_fmt, wellname, stages_path, file_boundaries )
+        allstages[ex][wellname] = wellstages
         #Elegans.savestages(allstages)
     end
-    camstages
+    wellstages
 end
 
 
