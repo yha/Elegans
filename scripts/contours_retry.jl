@@ -9,7 +9,7 @@ contours_path = "U:/cached-data/contours"
 
 ##
 
-function retry_contours(contours)
+function retry_contours!(contours)
     errors_i = sort!(findall( c -> !(c isa AbstractVector), contours.cache ))
     @info "Retrying $(length(errors_i)) error frames..."
     n_errs = 0
@@ -46,7 +46,7 @@ exwells  = [(ex, well) for ex in exs for well in readdir(joinpath(root,ex))
         @info "No contour file $contours_file. Skipping"
         continue
     end
-    errs_before, errs_after = retry_contours(contours)
+    errs_before, errs_after = retry_contours!(contours)
     errs_before == 0 && continue
     @info "Saving contours for $(well.well) to $contours_file"
     @time save_contours(contours, contours_file)
