@@ -4,12 +4,16 @@ using DataFrames
 
 const frames_per_hr = frames_per_s * 3600
 
-const binsize_speed = 6
-const binsize_da = deg2rad(3.6)
+const binsize_speed = 0.9          # = `(speed_max-speed_min) / bins_num_speed` in the MATLAB script
+const binsize_da = deg2rad(3.62)   # = `(AV_max-AV_min) / bins_num_AV` in the MATLAB script
 
 stages = loadstages()
 
-isroaming(speed,dangle,slope) = slope*(speed/binsize_speed + 1) > dangle/binsize_da + 1
+# `discretize=true` mimics the discretization into bins in the original MATLAB scripts.
+# `discretize=false` skips the binning.
+isroaming(speed, dangle, slope; discretize=false) = _isroaming(speed, dangle, slope, 
+                                                               discretize ? round : identity)
+_isroaming(speed, dangle, slope, f) = slope*(f(speed/binsize_speed) + 1) > f(dangle/binsize_da) + 1
 
 function roam(traj, rows, slope)
     smooth_window = 10*frames_per_s + 1
