@@ -5,7 +5,7 @@ using LinearAlgebra
 
 _mid(sp,s) = Point2(Elegans.splines2midpoint(sp[1],sp[2],s))
 
-function range_midpoints( traj, contours, irange, t=0:0.025:1,
+function range_midpoints( traj, contours, irange, s=0:0.025:1,
                             headtail_method=SpeedHTCM(5,0), end_assigment_params=EndAssigmentParams() )
     @info "Locating head and tail..."
     head, tail, splits_ht, conf = headtail_trajectories( traj, contours, irange, headtail_method, end_assigment_params )
@@ -17,8 +17,8 @@ function range_midpoints( traj, contours, irange, t=0:0.025:1,
     @time splines = [passmissing(line2spline).(spl) for spl in splits_ht]
 
     @info "Find midpoints..."
-    @progress "midpoints" midpts = [passmissing(_mid)(splines[i],t) for i in irange, t in t]
-    midpts = OffsetArray(midpts, irange, eachindex(t))
+    @progress "midpoints" midpts = [passmissing(_mid)(splines[i],t) for i in irange, t in s]
+    midpts = OffsetArray(midpts, irange, eachindex(s))
 end
 
 # used instead of skipmissing as a workaround for Statistics.jl issue #50
@@ -57,20 +57,30 @@ function normed_midpoint_covs( midpts, t, windows )
     normed_covs = covs ./ coalesce.(mean_lens,NaN)
 end
 
-
 const newaxis = [CartesianIndex()]
-const newaxis_c = OffsetVector([CartesianIndex()],0:0)
+const newaxis_c = OffsetVector([CartesianIndex()], 0:0)
+const D = centered([-1 / 2, 0, 1 / 2]) # derivative
+
+
+_m2mp(a::AbstractArray{<:Union{Point,Missing}}) = replace(a, missing => Elegans.missingpoint)
+_m2mp(a::AbstractArray{<:Point}) = a
+
+# velocity vector at each midpoint. 
+# `midpts[i,j]::Point2` is the midpoint in frame i at position s[j] along the midline.
+function velocities(midpts)
+    midpts_nan = _m2mp(midpts)
+    imfilter(midpts_nan, D[:, newaxis_c])
+end
+
 
 function normal_speeds(midpts)
-    d = centered([-1/2,0,1/2]) # derivative
-
-    midpts_nan = replace(midpts, missing=>Elegans.missingpoint)
+    midpts_nan = _m2mp(midpts)
     # tangents pointing towards tail
-    tangents = LinearAlgebra.normalize.(imfilter(midpts_nan, d[newaxis_c,:]))
+    tangents = LinearAlgebra.normalize.(imfilter(midpts_nan, D[newaxis_c, :]))
     # normals pointing to the worm's right
     nrm = [[-p[2],p[1]] for p in tangents]
 
-    v = imfilter(midpts_nan, d[:,newaxis_c])
+    v = velocities(midpts_nan)
     #v_t = dot.(tangents, v)
     v_n = dot.(nrm, v)
 end
