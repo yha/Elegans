@@ -117,14 +117,18 @@ end
 ## Midpoints cache
 
 #const default_midpoints_path = joinpath(datadir,"midpoints")
+const default_midpoints_s = 0:0.025:1
 
 as_tuple(x::T) where T = NamedTuple{fieldnames(T)}(tuple((getfield(x,i) for i in 1:fieldcount(T))...))
 
 const default_headtail_method = SpeedHTCM(5,0)
 
-function midpoints_filename( ex, well, t=0:0.025:1; midpoints_path,
+# `s` argument is unused, but kept for backwards compatibility
+# instead of using `s` in the filename, the number of midpoints is inferred
+# from the loaded data, with midpoints assumed to be evenly spaced.
+function midpoints_filename( ex, wellname, s=nothing; midpoints_path,
         contour_method, headtail_method, end_assignment_params )
-    wellname = replace( well,  r"[\\/]" => "-" )
+    wellname = replace( wellname,  r"[\\/]" => "-" )
     cm = contours_methodname(contour_method)
     m = as_tuple(headtail_method)
     p = as_tuple(end_assignment_params)
@@ -142,9 +146,10 @@ function load_midpoints( midpoints_file )
     stored_midpoints
 end
 
-function load_midpoints( well::Well, t; midpoints_path, contour_method, 
+# `s` argument is unused, but kept for backwards compatibility
+function load_midpoints( well::Well, s=nothing; midpoints_path, contour_method, 
                             headtail_method = default_headtail_method, end_assignment_params=EndAssigmentParams() )
-    midpoints_file = midpoints_filename( well.experiment, well.well, t; midpoints_path, contour_method, headtail_method, end_assignment_params )
+    midpoints_file = midpoints_filename( well.experiment, well.well; midpoints_path, contour_method, headtail_method, end_assignment_params )
     load_midpoints( midpoints_file )
 end
 
@@ -152,23 +157,27 @@ end
 const MaybePoint2F = Union{Missing, Point2{Float64}}
 const Midpoints = OffsetArray{MaybePoint2F,2,Matrix{MaybePoint2F}}
 
-function midpoint_cache( traj, contours, t=0:0.025:1;
+function midpoint_cache( traj, contours, s=0:0.025:1;
                 headtail_method = default_headtail_method, end_assignment_params = EndAssigmentParams())
     cache = Dict{UnitRange,Midpoints}()
     irange -> get!(cache,irange) do
-        range_midpoints( traj, contours, irange, t, headtail_method, end_assignment_params  )
+        range_midpoints( traj, contours, irange, s, headtail_method, end_assignment_params  )
     end
 end
 
 
 
 # TODO have contour_method stored with contours
-function init_midpoints( well, traj, contours, t=0:0.025:1;
+# TODO remove this? 
+#      a midpoint cache with only some midpoints computed in advance is mostly useless;
+#      an error when not all midpoints are pre-computed is better, 
+#      so `load_midpoints` and `load_well_midpoints` are more useful.
+function init_midpoints( well, traj, contours, s=0:0.025:1;
                         contour_method, midpoints_path,
                         headtail_method = default_headtail_method, end_assignment_params=EndAssigmentParams() )
-    mids = midpoint_cache(traj, contours, t; headtail_method, end_assignment_params)
+    mids = midpoint_cache(traj, contours, s; headtail_method, end_assignment_params)
 
-    midpoints_file = midpoints_filename( well.experiment, well.well, t; midpoints_path, contour_method, headtail_method, end_assignment_params )
+    midpoints_file = midpoints_filename( well.experiment, well.well; midpoints_path, contour_method, headtail_method, end_assignment_params )
 
     if isfile(midpoints_file)
         stored_midpoints = load_midpoints( midpoints_file )
@@ -178,16 +187,16 @@ function init_midpoints( well, traj, contours, t=0:0.025:1;
 end
 
 """
-    load_cam_midpoints(ex, cam, s, contour_methods, iranges = nothing; 
+    load_well_midpoints(ex, well, s, contour_methods, iranges = nothing; 
                         midpoints_path, headtail_method, end_assignment_params = EndAssigmentParams())
 Load midpoints for different contouring methods (different files) and merge into a single dict.
 `contour_methods` is a dict mapping stage to contouring method.
-If `iranges` is given, verify that the loaded ranges match the given ranges.
+If `iranges` is given, verify that the loaded frame ranges match the given ranges.
 """
-function load_cam_midpoints(ex, cam, s, contour_methods, iranges = nothing; 
+function load_well_midpoints(well, contour_methods, iranges = nothing; 
                         midpoints_path, headtail_method = default_headtail_method, end_assignment_params = EndAssigmentParams())
     method2stages = Dict( m => [k for (k,v) in contour_methods if v == m] for m in unique(values(contour_methods)) )
-    mids_dicts = Dict( m => load_midpoints( midpoints_filename( ex, cam, s;
+    mids_dicts = Dict( m => load_midpoints( midpoints_filename( well.experiment, well.well;
                                 contour_method = m,
                                 midpoints_path, headtail_method,
                                 end_assignment_params ) )
