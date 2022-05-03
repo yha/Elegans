@@ -33,6 +33,13 @@ else
     VideoIO.load( _videopath( well.path, well.video_prefix, idx ) )
 end
 
+# For sorting lists of wells
+Base.isless(w1::Well, w2::Well) = let f(w) = (w.experiment, w.well, w.root)
+    isless(f(w1), f(w2))
+end
+
+wellname(well::Well) = "$(well.experiment)-$(well.well)"
+
 function prefix(welldir)
     #isnothing(datadir) || (welldir = joinpath( datadir, welldir ))
     files = readdir(welldir)
