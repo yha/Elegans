@@ -162,11 +162,12 @@ end
 const MaybePoint2F = Union{Missing, Point2{Float64}}
 const Midpoints = OffsetArray{MaybePoint2F,2,Matrix{MaybePoint2F}}
 
-function midpoint_cache( traj, contours, s=0:0.025:1;
+function midpoint_cache( traj, contours, s = default_midpoints_s;
                 headtail_method = default_headtail_method, end_assignment_params = EndAssigmentParams())
     cache = Dict{UnitRange,Midpoints}()
     irange -> get!(cache,irange) do
-        range_midpoints( traj, contours, irange, s, headtail_method, end_assignment_params  )
+        midpts, _ = range_midpoints( traj, contours, irange, s, headtail_method, end_assignment_params  )
+        midpts
     end
 end
 

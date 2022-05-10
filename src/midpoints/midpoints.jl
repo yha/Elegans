@@ -2,6 +2,7 @@ using OffsetArrays
 using Missings
 using ImageFiltering
 using LinearAlgebra
+using Unzip
 
 _mid(sp,s) = Point2(Elegans.splines2midpoint(sp[1],sp[2],s))
 
@@ -14,11 +15,25 @@ function range_midpoints( traj, contours, irange, s=0:0.025:1,
     # @progress "splines" splines = [passmissing(line2spline).(spl) for spl in splits_ht]
     # firstindex(splines) == 1 && error("Juno.@progress lost array offsets") # Juno should be updated or @progress removed
     # alternative:
-    @time splines = [passmissing(line2spline).(spl) for spl in splits_ht]
+    @time splines = [passmissing(line2spline).(split) for split in splits_ht]
 
     @info "Find midpoints..."
     @progress "midpoints" midpts = [passmissing(_mid)(splines[i],t) for i in irange, t in s]
-    midpts = OffsetArray(midpts, irange, eachindex(s))
+
+    # TODO compute directly with Point(NaN,NaN) rather than `missing` in previous stages
+    midpts = replace(midpts, missing => Elegans.missingpoint)
+
+    @info "Resampling mid-points..."
+    max_iters = 100
+    @time midpt_vecs, iters = unzip(Elegans.resample_line(m, s; max_iters) for m in eachrow(midpts))
+    not_converged = findall(==(max_iters), iters)
+    if !isempty(not_converged)
+        @warn "Resampling failed to converge on frames: $(irange[not_converged])" 
+    end
+
+    midpts = permutedims(reduce(hcat, midpt_vecs))
+
+    OffsetArray(midpts, irange, eachindex(s)), OffsetArray(iters, irange)
 end
 
 # used instead of skipmissing as a workaround for Statistics.jl issue #50
