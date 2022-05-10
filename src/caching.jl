@@ -10,12 +10,14 @@ end
 #  - Converting such BoundError-s directly to string is extremely
 #    slow (~1min!), so not a good option either
 function trying_cache(f, ::Type{IN}, ::Type{OUT};
+                      rethrow_condition = e -> e isa InterruptException,
                       cache = Dict{IN,Union{OUT,String}}(),
                       exc_f = summarize_exception) where {IN, OUT}
     x -> get!(cache, x) do
         try
             f(x)
         catch e
+            rethrow_condition(e) && rethrow()
             exc_f( e, catch_backtrace() )
         end
     end
@@ -63,6 +65,8 @@ function contours_filename(well_relpath, method, contours_path )
     m = contours_methodname(method)
     contours_file = joinpath(contours_path,"contours-$m-$wellname.jld2")
 end
+contours_filename(well::Well, method, contours_path) = contours_filename( 
+        joinpath(well.experiment, well.well), method, contours_path )
 
 function load_contours( contours_file, vcache )
     @info "Loading cached contours from $contours_file ..."
@@ -89,17 +93,18 @@ function load_contours( contours_file, vcache )
     stored_contours
 end
 
-function init_contours( well, method, contours_path; traj=load_coords_and_size(well) )
+function init_contours( well, method, contours_path; traj=load_coords_and_size(well), err_on_missing_contour_file=false )
     @info "Initializing video cache ($(well.path))..."
     vcache = VideoCache(well; traj)
     contours = contour_cache(vcache,method)
 
-    contours_file = contours_filename( joinpath(well.experiment, well.well), 
-                                        method, contours_path )
+    contours_file = contours_filename(well, method, contours_path)
 
     if isfile(contours_file)
         stored_contours = load_contours( contours_file, vcache )
         merge!(contours.cache, stored_contours)
+    elseif err_on_missing_contour_file
+        error("No contours file $contours_file")
     end
     contours, contours_file, vcache
 end
