@@ -71,6 +71,7 @@ end
 const newaxis = [CartesianIndex()]
 const newaxis_c = OffsetVector([CartesianIndex()], 0:0)
 const D = centered([-1 / 2, 0, 1 / 2]) # derivative
+const rD = .- D # reverse derivative
 
 
 _m2mp(a::AbstractArray{<:Union{Point,Missing}}) = replace(a, missing => Elegans.missingpoint)
@@ -83,17 +84,67 @@ function velocities(midpts)
     imfilter(midpts_nan, D[:, newaxis_c])
 end
 
+# length of midline at each frame.
+# `midpts[i,j]::Point2` is the midpoint in frame i at position s[j] along the midline.
+function midline_lengths(midpts)
+    midpts_nan = _m2mp(midpts)
+    curvelen.(eachrow(midpts_nan))
+end
 
-function normal_speeds(midpts)
+# filter to apply to a vector `v` of a positions at consecutive frames 
+# to obtain its derivative (velocity) after filtering with `prefilter`:
+# (v ⋆ prefilter) ⋆ D = v ⋆ (prefilter ⋆ reverse(D))
+# where "⋆" is cross-correlation (imfilter)
+# FIXME: add the required zero-padding for this to workaround
+velocities_filter(prefilter) = imfilter(prefilter, rD)
+velocities_filter(::Nothing) = D
+
+# velocities filter operating per row
+velocitives_row_filter(prefilter) = velocities_filter(prefilter)[:, newaxis_c]
+
+# velocity vector at each midpoint. 
+# `midpts[i,j]::Point2` is the midpoint in frame i at position s[j] along the midline.
+function velocities2(midpts, prefilter = nothing)
+    midpts_nan = _m2mp(midpts)
+    filt = velocitives_row_filter(prefilter)
+    imfilter(midpts_nan, filt)
+end
+
+function normal_speeds(midpts; v = nothing)
     midpts_nan = _m2mp(midpts)
     # tangents pointing towards tail
     tangents = LinearAlgebra.normalize.(imfilter(midpts_nan, D[newaxis_c, :]))
     # normals pointing to the worm's right
     nrm = [[-p[2],p[1]] for p in tangents]
 
-    v = velocities(midpts_nan)
+    if v === nothing
+        v = velocities(midpts_nan)
+    end
     #v_t = dot.(tangents, v)
     v_n = dot.(nrm, v)
 end
 
-normed_normal_speeds(midpts) = normal_speeds(midpts) ./ coalesce.(curvelen.(eachrow(midpts)), NaN)
+normed_normal_speeds(midpts; v = nothing) = normal_speeds(midpts; v) ./ coalesce.(curvelen.(eachrow(midpts)), NaN)
+
+# Turtle-graphics representations
+
+# workaround for julia issue #32888
+_rem2pi(x, mode) = isfinite(x) ? rem2pi(x, mode) : NaN
+
+function curve2turtle(x, y)
+    dx, dy = diff(x), diff(y)
+    d = hypot.(dx, dy)
+    # Zygote doesn't like comprehensions (issue #804)
+    angles = map((x, y) -> atan(y, x), dx, dy)
+    turns = _rem2pi.(diff(angles), RoundNearest)
+    (; d, turns)
+end
+function curve2turtle(points::AbstractVector{<:Point2})
+    xy = reinterpret(reshape, eltype(eltype(points)), points)
+    @views curve2turtle(xy[1, :], xy[2, :])
+end
+
+# turtle-graphics at each from.
+# `midpts[i,j]::Point2` is the midpoint in frame i at position s[j] along the midline.
+mids2turtle(midpts) = mapslices(c->Elegans.curve2turtle(c), midpts; dims=2)
+mids2turns(midpts) = mapslices(c->Elegans.curve2turtle(c).turns, midpts; dims=2)
