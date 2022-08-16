@@ -93,7 +93,8 @@ function load_contours( contours_file, vcache )
     stored_contours
 end
 
-function init_contours( well, method, contours_path; traj=load_coords_and_size(well), err_on_missing_contour_file=false )
+function init_contours( well, method, contours_path; 
+                        traj=load_coords_and_size(well), err_on_missing_contour_file=false )
     @info "Initializing video cache ($(well.path))..."
     vcache = VideoCache(well; traj)
     contours = contour_cache(vcache,method)
@@ -178,6 +179,7 @@ end
 #      a midpoint cache with only some midpoints computed in advance is mostly useless;
 #      an error when not all midpoints are pre-computed is better, 
 #      so `load_midpoints` and `load_well_midpoints` are more useful.
+# This function does not work with newer midpoint files (which are indexed by stage number)
 function init_midpoints( well, traj, contours, s=0:0.025:1;
                         contour_method, midpoints_path,
                         headtail_method = default_headtail_method, end_assignment_params=EndAssigmentParams() )
@@ -193,13 +195,13 @@ function init_midpoints( well, traj, contours, s=0:0.025:1;
 end
 
 """
-    load_well_midpoints(ex, well, s, contour_methods, iranges = nothing; 
-                        midpoints_path, headtail_method, end_assignment_params = EndAssigmentParams())
+        load_well_midpoints(well, contour_methods, iranges = nothing; 
+                            midpoints_path, headtail_method = default_headtail_method, end_assignment_params = EndAssigmentParams())
 Load midpoints for different contouring methods (different files) and merge into a single dict.
 `contour_methods` is a dict mapping stage to contouring method.
-If `iranges` is given, verify that the loaded frame ranges match the given ranges.
+If `iranges` is given, verify that the loaded midpoints are indexed by the given frame ranges.
 """
-function load_well_midpoints(well, contour_methods, iranges = nothing; 
+function load_well_midpoints(well, contour_methods, iranges = nothing;
                         midpoints_path, headtail_method = default_headtail_method, end_assignment_params = EndAssigmentParams())
     method2stages = Dict( m => [k for (k,v) in contour_methods if v == m] for m in unique(values(contour_methods)) )
     mids_dicts = Dict( m => load_midpoints( midpoints_filename( well.experiment, well.well;
@@ -209,7 +211,7 @@ function load_well_midpoints(well, contour_methods, iranges = nothing;
                         for m in keys(method2stages) )
     if iranges !== nothing
         for (m,d) in mids_dicts
-            loaded = sort!(collect(keys(d)))
+            loaded = [axes(d[k],1) for k in sort!(collect(keys(d)))]
             expected = sort!([iranges[k] for k in method2stages[m]])
             loaded == expected || error("Expected ranges $expected, Found $loaded (method $m).")
         end
