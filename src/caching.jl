@@ -163,6 +163,7 @@ end
 const MaybePoint2F = Union{Missing, Point2{Float64}}
 const Midpoints = OffsetArray{MaybePoint2F,2,Matrix{MaybePoint2F}}
 
+# TODO remove?
 function midpoint_cache( traj, contours, s = default_midpoints_s;
                 headtail_method = default_headtail_method, end_assignment_params = EndAssigmentParams())
     cache = Dict{UnitRange,Midpoints}()
@@ -194,12 +195,26 @@ function init_midpoints( well, traj, contours, s=0:0.025:1;
     mids, midpoints_file
 end
 
+function well2midpoints_cache(contour_methods, cache = LRU{WellID,Any}(; maxsize=100); 
+        #stagedict=loadstages(), 
+        midpoints_path, 
+        headtail_method = default_headtail_method, end_assignment_params = EndAssigmentParams())
+    function (experiment, wellname)
+        well_id = WellID(experiment, wellname)
+        get!(cache, well_id) do 
+            load_well_midpoints(well_id, contour_methods; 
+                                midpoints_path, headtail_method, end_assignment_params)
+        end
+    end
+end
+
 """
         load_well_midpoints(well, contour_methods, iranges = nothing; 
                             midpoints_path, headtail_method = default_headtail_method, end_assignment_params = EndAssigmentParams())
 Load midpoints for different contouring methods (different files) and merge into a single dict.
 `contour_methods` is a dict mapping stage to contouring method.
 If `iranges` is given, verify that the loaded midpoints are indexed by the given frame ranges.
+`well` may be either a `WellID` or a `Well`.
 """
 function load_well_midpoints(well, contour_methods, iranges = nothing;
                         midpoints_path, headtail_method = default_headtail_method, end_assignment_params = EndAssigmentParams())

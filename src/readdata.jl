@@ -9,6 +9,11 @@ using ProgressLogging
 # TODO 
 # remove older "filepath_f" interface and cleanup
 
+struct WellID
+    experiment::String
+    well::String
+end
+
 struct Well
     # separate `root`, `experiment` and `well` components are used in addition to full path,
     # for easier sanity checking e.g. in _import_coords_jld2
