@@ -133,7 +133,7 @@ const default_headtail_method = SpeedHTCM(5,0)
 # instead of using `s` in the filename, the number of midpoints is inferred
 # from the loaded data, with midpoints assumed to be evenly spaced.
 function midpoints_filename( ex, wellname, s=nothing; midpoints_path,
-        contour_method, headtail_method, end_assignment_params )
+        contour_method, headtail_method = default_headtail_method, end_assignment_params = EndAssigmentParams() )
     wellname = replace( wellname,  r"[\\/]" => "-" )
     cm = contours_methodname(contour_method)
     m = as_tuple(headtail_method)
@@ -154,7 +154,7 @@ end
 
 # `s` argument is unused, but kept for backwards compatibility
 function load_midpoints( well::Well, s=nothing; midpoints_path, contour_method, 
-                            headtail_method = default_headtail_method, end_assignment_params=EndAssigmentParams() )
+                            headtail_method = default_headtail_method, end_assignment_params = EndAssigmentParams() )
     midpoints_file = midpoints_filename( well.experiment, well.well; midpoints_path, contour_method, headtail_method, end_assignment_params )
     load_midpoints( midpoints_file )
 end
