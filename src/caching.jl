@@ -145,10 +145,10 @@ save_midpoints(midpts, filename) = save(filename, Dict("midpoints"=>midpts.cache
 
 function load_midpoints( midpoints_file )
     @info "Loading cached midpoints from $midpoints_file ..."
-    @time d = load(midpoints_file)
+    t = @elapsed d = load(midpoints_file)
     stored_midpoints = d["midpoints"]
-    n, n_err = length(stored_midpoints), count((!isa).(values(stored_midpoints),Midpoints))
-    @info "... midpoints for $(n-n_err) stages loaded ($n_err errors)"
+    n = length(stored_midpoints)
+    @info "... midpoints for $n stages loaded in $t seconds"
     stored_midpoints
 end
 
