@@ -102,6 +102,7 @@ _videopath( welldir, pr, idx ) = "$welldir/shape$pr$(string(idx;pad=4)).mp4"
 function videopath_f( welldir, datadir = nothing )
     isnothing(datadir) || (welldir = joinpath( datadir, welldir ))
     pr = video_prefix(welldir)
+    pr === nothing && throw("No shape videos in $welldir")
     idx -> _videopath( welldir, pr, idx )
 end
 
