@@ -70,6 +70,8 @@ function roam_for_stage_like_matlab( well, traj, stage;
 
     smspeed  = mapwindow(mean, Elegans.m2n(traj.speed[fr]), -runmean_half_len:runmean_half_len)[ begin+runmean_half_len:end-runmean_half_len ]
     smdangle = mapwindow(mean, Elegans.m2n(abs.(traj.dangle[fr])), -runmean_half_len:runmean_half_len)[ begin+runmean_half_len:end-runmean_half_len ]
+    # `fr_out` are the frames that `roam` and `speed_ok` correspond to
+    fr_out = fr[ begin+runmean_half_len:end-runmean_half_len ]
     speed_ok = 0 .< smspeed .< max_speed
     
     slope = roaming_slope_per_stage[stage]
@@ -80,6 +82,8 @@ function roam_for_stage_like_matlab( well, traj, stage;
     elseif stage == 5
         roam[end-runmean_half_len+1:end] .= 0
     end
+
+    @assert axes(fr_out) == axes(roam) == axes(speed_ok)
            
-    (; roam, speed_ok)
+    (; roam, speed_ok, frames = fr_out)
 end
