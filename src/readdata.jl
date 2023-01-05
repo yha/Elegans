@@ -31,7 +31,7 @@ end
 
 load_coords_and_size(well::Well; err_on_wrong_well=true) = load_coords_and_size( well.experiment, well.well, well.root; err_on_wrong_well )
 load_video( well::Well, idx ) = if isnothing(well.video_prefix)
-    @info "No videos found. Looking for short*.mat files"
+    @info "This well ($(well.experiment) / $(well.well)) has no videos. Loading from short*.mat file"
     readframes( (type,i) -> _filepath( well.path, well.mat_prefix, :short, i ),
                 idx )
 else
@@ -80,9 +80,14 @@ for (sym, prefix, varname) in filetypes
 end
 
 # read old-format cropped frames
+
+# Matlab data sometimes has empty 2d matrices of Union{}
+_mat_frame_array(a::Array{UInt8,3}) = a
+_mat_frame_array(m::Matrix{Union{}}) = zeros(UInt8,0,0,3) # reshape(m, size(m)..., 1)
+
 function readframes( path_f, idx )
     frames = vec( read_cropped( path_f, idx ) )
-    [colorview(RGB, normedview(permuteddimsview(fr,(3,1,2)))) for fr in frames]
+    [colorview(RGB, normedview(permuteddimsview(_mat_frame_array(fr),(3,1,2)))) for fr in frames]
 end
 
 function video_prefix(welldir)
@@ -99,12 +104,12 @@ end
 
 # `datadir` argument kept for backwards compatibility
 _videopath( welldir, pr, idx ) = "$welldir/shape$pr$(string(idx;pad=4)).mp4"
-function videopath_f( welldir, datadir = nothing )
-    isnothing(datadir) || (welldir = joinpath( datadir, welldir ))
-    pr = video_prefix(welldir)
-    pr === nothing && throw("No shape videos in $welldir")
-    idx -> _videopath( welldir, pr, idx )
-end
+# function videopath_f( welldir, datadir = nothing )
+#     isnothing(datadir) || (welldir = joinpath( datadir, welldir ))
+#     pr = video_prefix(welldir)
+#     pr === nothing && throw("No shape videos in $welldir")
+#     idx -> _videopath( welldir, pr, idx )
+# end
 
 read_video(path_f, idx) = VideoIO.load(path_f(idx))
 

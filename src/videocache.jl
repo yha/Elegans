@@ -1,17 +1,15 @@
 using LRUCache
 
-struct VideoCache{F}
-    path_f::F
+struct VideoCache
+    well::Well
     boundaries::Vector{Int}
     cache::LRU{Int,Any}
 
     @deprecate VideoCache(well,datadir) VideoCache(Well(datadir, splitdir(well)...))
     function VideoCache( well::Well; traj = load_coords_and_size(well), maxsize = 20 )
-        relwell = joinpath(well.experiment, well.well)
-        path_f = Elegans.videopath_f(relwell, well.root)
         boundaries = boundaries_from_traj(traj)
         cache = LRU{Int,Any}( maxsize = maxsize )
-        new{typeof(path_f)}( path_f, boundaries, cache )
+        new( well, boundaries, cache )
     end
 end
 
@@ -23,8 +21,8 @@ end
 
 function _fetch_video(cache::VideoCache, fileno)
     frames = get!(cache.cache, fileno) do
-        @info "Reading video $fileno ($(cache.path_f(fileno)))" _group=:videoread
-        Elegans.read_video( cache.path_f, fileno )
+        @info "Reading video $fileno of $(cache.well)" _group=:videoread
+        Elegans.load_video( cache.well, fileno )
     end
 end
 
