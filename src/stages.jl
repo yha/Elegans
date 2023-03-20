@@ -14,10 +14,10 @@ end
 
 stage_frames( well::Well, stage::Integer; stagedict=loadstages() ) = stage_frames(
                                         well, stage:stage; stagedict)
-stage_frames( well::Well, stages::AbstractUnitRange; stagedict=loadstages() ) = _stage_frames(
+stage_frames( well::Well, stages::AbstractUnitRange; stagedict=loadstages() ) = stage_frames(
                                         well.experiment, well.well, stages; stagedict)
 
-function _stage_frames( ex, well, stages::AbstractUnitRange; stagedict )
+function stage_frames( ex, well, stages::Union{AbstractUnitRange,Integer}; stagedict )
     stage_boundaries = stagedict[ex][well]
     return stage_boundaries[first(stages)]+1:stage_boundaries[last(stages)+1]
 end
