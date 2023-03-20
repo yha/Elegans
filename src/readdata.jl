@@ -125,13 +125,13 @@ _coords_jld2_path(ex, well, root) = _coords_jld2_path(joinpath(root, ex, well))
 function _import_coords_jld2(ex, well, jld2path; err_on_wrong_well)
     @info "Loading coordinates from $jld2path"
     d = load(jld2path)
+    _ex, _well = get(d, "ex", nothing), get(d, "well", nothing)
+    _ex == ex || @warn "Wrong experiment name: expected $(repr(ex)), found $(repr(_ex))."
+    _well == well || @warn "Wrong well name: expected $(repr(well)), found $(repr(_well))."
     if err_on_wrong_well
         @assert ex == d["ex"]
         @assert well == d["well"]
     end
-    _ex, _well = get(d, "ex", nothing), get(d, "well", nothing)
-    _ex == ex || @warn "Wrong experiment name: expected $(repr(ex)), found $(repr(_ex))."
-    _well == well || @warn "Wrong well name: expected $(repr(well)), found $(repr(_well))."
     d["traj"]
 end
 
