@@ -22,6 +22,7 @@ function stage_frames( ex, well, stages::Union{AbstractUnitRange,Integer}; stage
     return stage_boundaries[first(stages)]+1:stage_boundaries[last(stages)+1]
 end
 
+nstages( well::Well; stagedict=loadstages() ) = nstages( well.experiment, well.well; stagedict )
 nstages( ex, well; stagedict=loadstages() ) = length(stagedict[ex][well]) - 1
 
 ## Loading of stages saved by MATLAB script (separate_to_developmental_stages.m)
