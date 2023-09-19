@@ -58,10 +58,11 @@ trimmed_stage_frames(well, stage; stagedict) = stage_frames(well, stage; stagedi
 # Padding with frames from previous/next stage: the MATLAB code processes the stages glued together
 # after each stage is trimmed (although time is not continuous across stages this way)
 pre_pad_frames(well, stage; stagedict)  = stage == 1 ? Int[] : trimmed_stage_frames(well, stage-1; stagedict)[end-runmean_half_len+1:end]
-post_pad_frames(well, stage; stagedict) = stage == 5 ? Int[] : trimmed_stage_frames(well, stage+1; stagedict)[begin:begin+runmean_half_len-1]
+post_pad_frames(well, stage; stagedict) = stage == nstages(well; stagedict) ? Int[] : trimmed_stage_frames(well, stage+1; stagedict)[begin:begin+runmean_half_len-1]
 
 function roam_for_stage_like_matlab( well, traj, stage; 
                                      max_speed = 45,
+                                     last_stage = 5,
                                      stagedict=loadstages() )
 
     fr = ApplyArray(vcat, pre_pad_frames(well, stage; stagedict),
@@ -70,7 +71,7 @@ function roam_for_stage_like_matlab( well, traj, stage;
 
     smspeed  = mapwindow(mean, Elegans.m2n(traj.speed[fr]), -runmean_half_len:runmean_half_len)[ begin+runmean_half_len:end-runmean_half_len ]
     smdangle = mapwindow(mean, Elegans.m2n(abs.(traj.dangle[fr])), -runmean_half_len:runmean_half_len)[ begin+runmean_half_len:end-runmean_half_len ]
-    # `fr_out` are the frames that `roam` and `speed_ok` correspond to
+    # `fr_out` are the frames that `speed_ok` corresponds to
     fr_out = fr[ begin+runmean_half_len:end-runmean_half_len ]
     speed_ok = 0 .< smspeed .< max_speed
     
@@ -79,11 +80,12 @@ function roam_for_stage_like_matlab( well, traj, stage;
     # special edge case for first and last stage: Matlab code leaves the edges as zeros:
     if stage == 1
         roam[1:runmean_half_len] .= 0
-    elseif stage == 5
+    elseif stage == last_stage
         roam[end-runmean_half_len+1:end] .= 0
     end
 
-    @assert axes(fr_out) == axes(roam) == axes(speed_ok)
+    @assert axes(fr_out) == axes(speed_ok)
+    @assert length(roam) == count(speed_ok)
            
     (; roam, speed_ok, frames = fr_out)
 end
