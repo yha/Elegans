@@ -38,19 +38,21 @@ resample_line_once(line, s) =
         fill(Elegans.missingpoint, size(line)) :
         points( line2spline(line), s )
 
-# iteratively fit spline and resample until distance of adjacent points is nearly constant
-function resample_line(line, s; threshold = 0.99, max_iters = 100)
+# Iteratively fit spline and resample until distance of adjacent points is nearly constant
+# Returns the `(line, iters)` where `line` is the resampled line and `iters` is the 
+# number of iterations until convergence, or max_iters+1 is not converged
+function resample_line(line, s; threshold = 0.99, max_iters = 100, warn_not_converged = true)
     evenness(x) = let (d_min, d_max) = extrema(norm, diff(x))
         d_min / d_max
     end
     iters = 0
     while evenness(line) < threshold
-        if iters >= max_iters
-            @warn "Spline resampling failed to converge after $max_iters iterations." evenness=evenness(line)
+        iters += 1
+        if iters > max_iters
+            warn_not_converged && @warn "Spline resampling failed to converge after $max_iters iterations." evenness=evenness(line)
             break
         end
         line = resample_line_once(line, s)
-        iters += 1
     end
     line, iters
 end

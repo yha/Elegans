@@ -7,7 +7,9 @@ using Unzip
 _mid(sp,s) = Point2(Elegans.splines2midpoint(sp[1],sp[2],s))
 
 function range_midpoints( traj, contours, irange, s=0:0.025:1,
-                            headtail_method=SpeedHTCM(5,0), end_assigment_params=EndAssigmentParams() )
+                            headtail_method=SpeedHTCM(5,0), end_assigment_params=EndAssigmentParams();
+                            resample_max_iter = 100
+                        )
     @info "Locating head and tail..."
     head, tail, splits_ht, conf = headtail_trajectories( traj, contours, irange, headtail_method, end_assigment_params )
     @info "Creating contour splines..."
@@ -19,10 +21,13 @@ function range_midpoints( traj, contours, irange, s=0:0.025:1,
     # TODO compute directly with Point(NaN,NaN) rather than `missing` in previous stages
     midpts = replace(midpts, missing => Elegans.missingpoint)
 
+    # TODO resampling each contour spline first would probably be a bit better 
+    # than just resampling the midline
     @info "Resampling mid-points..."
-    max_iters = 100
-    @time midpt_vecs, iters = unzip(Elegans.resample_line(m, s; max_iters) for m in eachrow(midpts))
-    not_converged = findall(==(max_iters), iters)
+    max_iters = resample_max_iter
+    @time midpt_vecs, iters = unzip(Elegans.resample_line(m, s; max_iters, warn_not_converged = false) 
+                                     for m in eachrow(midpts))
+    not_converged = findall(>(max_iters), iters)
     if !isempty(not_converged)
         @warn "Resampling failed to converge on frames: $(irange[not_converged])" 
     end
