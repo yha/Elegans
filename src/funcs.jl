@@ -1,3 +1,4 @@
+## Circular statistics for vector `v` of angles
 circres(v) = mean(exp.(v.*im))
 circmean(v) = angle(circres(v))
 circvar(v) = 1 - norm(circres(v))

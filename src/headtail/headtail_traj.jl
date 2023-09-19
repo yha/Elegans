@@ -18,9 +18,9 @@ Base.@kwdef struct EndAssigmentParams
     round_winlen::Int = 10_001
 end
 
-# given bool array `v`, return bool array which is true inside sequences of
-# `true` of length at least `maxskip+1` in `v`.
 # This requires ImageFiltering version ≥ 0.6.14 to work correctly on offset arrays
+"""given bool array `v`, return bool array which is true inside sequences of
+`true` of length at least `maxskip+1` in `v`."""
 insequence(v, maxskip) = mapwindow(any, mapwindow(all, v, 0:maxskip, border=Fill(false)), -maxskip:0)
 
 area(c::Closed2DCurve) = PolygonOps.area(vertices_closed(c))
@@ -33,7 +33,7 @@ function end_assignment_segments( ratios, contours, params=EndAssigmentParams() 
     rnd = OffsetArray( map( c -> c isa AbstractVector && !isempty(c) ? roundness(c[1]) : missing,
                        contours.(irange) ), irange )
     #mw(f) = mapwindow( f∘skipmissing, rnd, round_winlen )
-    @info "computing roundness statistics"
+    @info "computing roundness statistics" params axes(rnd)
     @time meanstd_rnd = mapwindow(rnd, params.round_winlen) do w
         sw = skipmissing(w)
         μ = mean(sw)
