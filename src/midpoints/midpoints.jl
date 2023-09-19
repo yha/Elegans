@@ -6,6 +6,14 @@ using Unzip
 
 _mid(sp,s) = Point2(Elegans.splines2midpoint(sp[1],sp[2],s))
 
+"""
+Compute midpoints in a range of frames `irange`.
+This computation cannot be performed on each frame separately, as the head and tail are identified 
+based on their movement. The range should typically be an entire stage.
+Returns a named tuple of offset arrays `(; midpts, iters, conf)` where `midpts[i,frame]` is the 
+midpoint at frame `frame` and `i`th node (`s=s[i]`), `conf[frame]` is the confidence in the assignment of 
+head and tail, and `iters[frame]` is the number of iteration until spline resampling converged.
+"""
 function range_midpoints( traj, contours, irange, s=0:0.025:1,
                             headtail_method=SpeedHTCM(5,0), end_assigment_params=EndAssigmentParams();
                             resample_max_iter = 100
@@ -34,7 +42,10 @@ function range_midpoints( traj, contours, irange, s=0:0.025:1,
 
     midpts = permutedims(reduce(hcat, midpt_vecs))
 
-    OffsetArray(midpts, irange, eachindex(s)), OffsetArray(iters, irange)
+   (; midpts = OffsetArray(midpts, irange, eachindex(s)), 
+      iters = OffsetArray(iters, irange),
+      conf
+   )
 end
 
 # used instead of skipmissing as a workaround for Statistics.jl issue #50
