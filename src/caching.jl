@@ -143,13 +143,19 @@ end
 
 save_midpoints(midpts, filename) = save(filename, Dict("midpoints"=>midpts.cache))
 
-function load_midpoints( midpoints_file )
+# `full` kwarg for backward compatibility (previously only midpoints were loaded)
+function load_midpoints( midpoints_file; full = false )
     @info "Loading cached midpoints from $midpoints_file ..."
     t = @elapsed d = load(midpoints_file)
     stored_midpoints = d["midpoints"]
     n = length(stored_midpoints)
     @info "... midpoints for $n stages loaded in $t seconds"
-    stored_midpoints
+    if full
+        conf, iters = d["conf"], d["iters"]
+        return (; mids = stored_midpoints, conf, iters)
+    else
+        return stored_midpoints
+    end
 end
 
 # `s` argument is unused, but kept for backwards compatibility
@@ -198,12 +204,13 @@ end
 function well2midpoints_cache(contour_methods, cache = LRU{WellID,Any}(; maxsize=100); 
         #stagedict=loadstages(), 
         midpoints_path, 
-        headtail_method = default_headtail_method, end_assignment_params = EndAssigmentParams())
+        headtail_method = default_headtail_method, end_assignment_params = EndAssigmentParams(),
+        full = false)
     function (experiment, wellname)
         well_id = WellID(experiment, wellname)
         get!(cache, well_id) do 
             load_well_midpoints(well_id, contour_methods; 
-                                midpoints_path, headtail_method, end_assignment_params)
+                                midpoints_path, headtail_method, end_assignment_params, full)
         end
     end
 end
@@ -216,20 +223,42 @@ Load midpoints for different contouring methods (different files) and merge into
 If `iranges` is given, verify that the loaded midpoints are indexed by the given frame ranges.
 `well` may be either a `WellID` or a `Well`.
 """
-function load_well_midpoints(well, contour_methods, iranges = nothing;
-                        midpoints_path, headtail_method = default_headtail_method, end_assignment_params = EndAssigmentParams())
+function load_well_midpoints( well, contour_methods, iranges = nothing;
+                        midpoints_path, headtail_method = default_headtail_method, end_assignment_params = EndAssigmentParams(),
+                        full = false )
     method2stages = Dict( m => [k for (k,v) in contour_methods if v == m] for m in unique(values(contour_methods)) )
     mids_dicts = Dict( m => load_midpoints( midpoints_filename( well.experiment, well.well;
                                 contour_method = m,
                                 midpoints_path, headtail_method,
-                                end_assignment_params ) )
+                                end_assignment_params ); 
+                                full )
                         for m in keys(method2stages) )
     if iranges !== nothing
         for (m,d) in mids_dicts
+            if full
+                d = d["mids"]
+            end
             loaded = [axes(d[k],1) for k in sort!(collect(keys(d)))]
             expected = sort!([iranges[k] for k in method2stages[m]])
             loaded == expected || error("Expected ranges $expected, Found $loaded (method $m).")
         end
     end
-    reduce(merge, values(mids_dicts))
+    if full
+        # each value in `mids_dict` is a tuple `(; mids, conf, iters)`, each of which
+        # is a dict mapping stage to values
+        tuples = values(mids_dicts)
+        for (; mids, conf, iters) in tuples
+            @assert allequal(sort(collect(keys(d))) for d in (mids, conf, iters))
+        end
+        @assert allunique(reduce(union, keys(t.mids) for t in tuples))
+
+        mids  = reduce(merge, v.mids  for v in tuples)
+        conf  = reduce(merge, v.conf  for v in tuples)
+        iters = reduce(merge, v.iters for v in tuples)
+        (; mids, conf, iters)
+    else
+        @show allunique(reduce(union, keys(d) for d in values(mids_dicts)))
+        @assert allunique(reduce(union, keys(d) for d in values(mids_dicts)))
+        reduce(merge, values(mids_dicts))
+    end
 end
