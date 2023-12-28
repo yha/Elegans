@@ -11,7 +11,7 @@ using RLEVectors
 using Missings
 
 
-Base.@kwdef struct EndAssigmentParams
+Base.@kwdef struct EndAssignmentParams
     max_skip::Int = 1
     max_ratio::Float64 = 0.2
     max_round_z::Float64 = 3
@@ -27,7 +27,7 @@ area(c::Closed2DCurve) = PolygonOps.area(vertices_closed(c))
 arclen(c::Closed2DCurve) = sum(norm.(diff(vertices_closed(c))))
 roundness(c) = 4π*area(c) / arclen(c)^2
 
-function end_assignment_segments( ratios, contours, params=EndAssigmentParams() )
+function end_assignment_segments( ratios, contours, params=EndAssignmentParams() )
     irange = axes(ratios,1)
 
     rnd = OffsetArray( map( c -> c isa AbstractVector && !isempty(c) ? roundness(c[1]) : missing,
@@ -119,13 +119,13 @@ end
 # trajectories of worm ends and center in "global" coordinates
 # (coordinates used in `traj`).
 function headtail_trajectories( traj, contours, irange,
-                headtail_method=SpeedHTCM(5,0), end_assigment_params=EndAssigmentParams() )
+                headtail_method=SpeedHTCM(5,0), end_assignment_params=EndAssignmentParams() )
     # Ends (and split contours) aligned by distance ratios
     e1, e2, center, splits_12, ratios = end_trajectories(traj, contours, irange)
     ends_found = .!ismissing.(ratios)
 
     # Break to segments
-    ranges, = Elegans.end_assignment_segments( ratios, contours, end_assigment_params )
+    ranges, = Elegans.end_assignment_segments( ratios, contours, end_assignment_params )
 
     # Head-tail classification
     h, = Elegans.headtail_stats( headtail_method, e1, e2, center )

@@ -133,7 +133,7 @@ const default_headtail_method = SpeedHTCM(5,0)
 # instead of using `s` in the filename, the number of midpoints is inferred
 # from the loaded data, with midpoints assumed to be evenly spaced.
 function midpoints_filename( ex, wellname, s=nothing; midpoints_path,
-        contour_method, headtail_method = default_headtail_method, end_assignment_params = EndAssigmentParams() )
+        contour_method, headtail_method = default_headtail_method, end_assignment_params = EndAssignmentParams() )
     wellname = replace( wellname,  r"[\\/]" => "-" )
     cm = contours_methodname(contour_method)
     m = as_tuple(headtail_method)
@@ -160,7 +160,7 @@ end
 
 # `s` argument is unused, but kept for backwards compatibility
 function load_midpoints( well::Well, s=nothing; midpoints_path, contour_method, 
-                            headtail_method = default_headtail_method, end_assignment_params = EndAssigmentParams() )
+                            headtail_method = default_headtail_method, end_assignment_params = EndAssignmentParams() )
     midpoints_file = midpoints_filename( well.experiment, well.well; midpoints_path, contour_method, headtail_method, end_assignment_params )
     load_midpoints( midpoints_file )
 end
@@ -171,7 +171,7 @@ const Midpoints = OffsetArray{MaybePoint2F,2,Matrix{MaybePoint2F}}
 
 # TODO remove?
 function midpoint_cache( traj, contours, s = default_midpoints_s;
-                headtail_method = default_headtail_method, end_assignment_params = EndAssigmentParams())
+                headtail_method = default_headtail_method, end_assignment_params = EndAssignmentParams())
     cache = Dict{UnitRange,Midpoints}()
     irange -> get!(cache,irange) do
         midpts, _ = range_midpoints( traj, contours, irange, s, headtail_method, end_assignment_params  )
@@ -189,7 +189,7 @@ end
 # This function does not work with newer midpoint files (which are indexed by stage number)
 function init_midpoints( well, traj, contours, s=0:0.025:1;
                         contour_method, midpoints_path,
-                        headtail_method = default_headtail_method, end_assignment_params=EndAssigmentParams() )
+                        headtail_method = default_headtail_method, end_assignment_params=EndAssignmentParams() )
     mids = midpoint_cache(traj, contours, s; headtail_method, end_assignment_params)
 
     midpoints_file = midpoints_filename( well.experiment, well.well; midpoints_path, contour_method, headtail_method, end_assignment_params )
@@ -204,7 +204,7 @@ end
 function well2midpoints_cache(contour_methods, cache = LRU{WellID,Any}(; maxsize=100); 
         #stagedict=loadstages(), 
         midpoints_path, 
-        headtail_method = default_headtail_method, end_assignment_params = EndAssigmentParams(),
+        headtail_method = default_headtail_method, end_assignment_params = EndAssignmentParams(),
         full = false)
     function (experiment, wellname)
         well_id = WellID(experiment, wellname)
@@ -217,14 +217,14 @@ end
 
 """
         load_well_midpoints(well, contour_methods, iranges = nothing; 
-                            midpoints_path, headtail_method = default_headtail_method, end_assignment_params = EndAssigmentParams())
+                            midpoints_path, headtail_method = default_headtail_method, end_assignment_params = EndAssignmentParams())
 Load midpoints for different contouring methods (different files) and merge into a single dict.
 `contour_methods` is a dict mapping stage to contouring method.
 If `iranges` is given, verify that the loaded midpoints are indexed by the given frame ranges.
 `well` may be either a `WellID` or a `Well`.
 """
 function load_well_midpoints( well, contour_methods, iranges = nothing;
-                        midpoints_path, headtail_method = default_headtail_method, end_assignment_params = EndAssigmentParams(),
+                        midpoints_path, headtail_method = default_headtail_method, end_assignment_params = EndAssignmentParams(),
                         full = false )
     method2stages = Dict( m => [k for (k,v) in contour_methods if v == m] for m in unique(values(contour_methods)) )
     mids_dicts = Dict( m => load_midpoints( midpoints_filename( well.experiment, well.well;

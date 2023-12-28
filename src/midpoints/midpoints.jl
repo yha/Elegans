@@ -7,6 +7,10 @@ using Unzip
 _mid(sp,s) = Point2(Elegans.splines2midpoint(sp[1],sp[2],s))
 
 """
+    range_midpoints( traj, contours, irange, s=0:0.025:1,
+        headtail_method = Elegans.SpeedHTCM(5,0), end_assigment_params = Elegans.EndAssignmentParams();
+        resample_max_iter = 100
+    )
 Compute midpoints in a range of frames `irange`.
 This computation cannot be performed on each frame separately, as the head and tail are identified 
 based on their movement. The range should typically be an entire stage.
@@ -15,11 +19,11 @@ midpoint at frame `frame` and `i`th node (`s=s[i]`), `conf[frame]` is the confid
 head and tail, and `iters[frame]` is the number of iteration until spline resampling converged.
 """
 function range_midpoints( traj, contours, irange, s=0:0.025:1,
-                            headtail_method=SpeedHTCM(5,0), end_assigment_params=EndAssigmentParams();
+                            headtail_method=SpeedHTCM(5,0), end_assignment_params=EndAssignmentParams();
                             resample_max_iter = 100
                         )
     @info "Locating head and tail..."
-    head, tail, splits_ht, conf = headtail_trajectories( traj, contours, irange, headtail_method, end_assigment_params )
+    head, tail, splits_ht, conf = headtail_trajectories( traj, contours, irange, headtail_method, end_assignment_params )
     @info "Creating contour splines..."
     @time @progress "Fitting splines..." splines = [passmissing(line2spline).(split) for split in splits_ht]
 
