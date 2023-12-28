@@ -250,15 +250,14 @@ function load_well_midpoints( well, contour_methods, iranges = nothing;
         for (; mids, conf, iters) in tuples
             @assert allequal(sort(collect(keys(d))) for d in (mids, conf, iters))
         end
-        @assert allunique(reduce(union, keys(t.mids) for t in tuples))
+        @assert allunique(reduce(vcat, keys(t.mids) for t in tuples))
 
         mids  = reduce(merge, v.mids  for v in tuples)
         conf  = reduce(merge, v.conf  for v in tuples)
         iters = reduce(merge, v.iters for v in tuples)
         (; mids, conf, iters)
     else
-        @show allunique(reduce(union, keys(d) for d in values(mids_dicts)))
-        @assert allunique(reduce(union, keys(d) for d in values(mids_dicts)))
+        @assert allunique(reduce(vcat, keys(d) for d in values(mids_dicts)))
         reduce(merge, values(mids_dicts))
     end
 end
