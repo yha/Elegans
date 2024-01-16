@@ -88,7 +88,7 @@ function headtail_splits( e1, e2, splits, y )
             splits_out[i] = headfirst ? splits[i] : reverse.(splits[i])
         end
     end
-    head, tail, splits_out, abs.(y)
+    (; head, tail, splits_out, conf = abs.(y))
 end
 
 function rlevec(ranges, irange, y)
