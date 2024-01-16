@@ -96,12 +96,15 @@ function swapat(pairs,mask)
     out
 end
 
-# split all contours along aligned ends
-# returns (splits, ratios) where
-# splits[i] is either the split for the i-th contour
-#           or the reported error
-# ratios[i] is the swap ratio for frame i and the next non-failed frame, or
-#           `missing` on failed frames and on the last non-failed frame
+
+"""
+Split all contours along aligned ends.
+Returns `(splits, ratios)` where
+`splits[i]` is either the split for the i-th contour
+          or the reported error
+`ratios[i]` is the swap ratio for frame i and the next non-failed frame, or
+          `missing` on failed frames and on the last non-failed frame
+"""
 function aligned_split(contours)
     #ends_i = trying(find_end_indices).(contours)
     @progress "finding ends" ends_i = [trying(find_end_indices)(c) for c in contours]
