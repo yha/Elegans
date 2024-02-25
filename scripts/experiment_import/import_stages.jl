@@ -12,10 +12,8 @@ using Plots
 using StatsBase
 using DataStructures
 
-# coord_data_root = "E:\\eshkar"
-# analyzed_root = "E:\\eshkar\\analyzed"
-coord_data_root = "U:\\experiments\\eshkar"
-analyzed_root = "U:\\experiments\\eshkar\\analyzed"
+coord_data_root = "U:\\experiments\\"
+analyzed_root = "U:\\experiments\\analyzed"
 
 function expname(dirname)
     # # match two uppercase letters followed by a sequence of digits
@@ -125,4 +123,4 @@ end
 Elegans.savestages(stagedict)
 
 ##
-Elegans.savestages(stagedict, "C:\\Users\\sternlab\\tmp-stages.toml")
+Elegans.savestages(stagedict, "tmp-stages.toml")

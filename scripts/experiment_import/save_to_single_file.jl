@@ -5,9 +5,7 @@ using Elegans
 using FileIO
 using JLD2
 
-#root = "E:/experiments/reemy"
-#exs = filter(s->contains(s, r"^RA\d{5}_\d{6}$"), readdir(root))
-root = "U:/experiments/manal/Coords"
+root = "U:/experiments/name"
 exs = filter(s->contains(s, r"^NG\d{3}"), readdir(root))
 
 for ex in exs
