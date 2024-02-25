@@ -5,7 +5,7 @@
     at least one CAM was found).
 """
 
-root = "G:/experiments/Nabeel/XY Results all/"
+root = "ROOT"
 
 using Glob
 function denest_wells(root; print_only=false)
