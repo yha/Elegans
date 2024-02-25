@@ -2,10 +2,8 @@ using Contour
 import Images, ImageFiltering
 using Images: otsu_threshold, imfilter
 using CircularArrays
-#using OffsetArrays
 using GeometryBasics
 using LinearAlgebra
-#import Luxor
 using PolygonOps
 using OffsetArrays: no_offset_view
 import IterTools
@@ -130,49 +128,6 @@ raw_worm_contours( img, method::SeededSegmentation ) = bgworm_segment_closed_con
 
 worm_contour( img, method ) = raw_worm_contours( img, method )[1]
 
-# function raw_worm_contour(img, level)
-#     curves = raw_worm_contours(img,level)
-#     #length(curves) == 1 || @warn("Contour has multiple components")
-#     curves[1]
-# end
-
-# curvature(c::Curve2) = curvature(coordinates(c)...)
-# function _curve_stats(x,y)
-#     (x[1],y[1]) == (x[end],y[end]) || error("Curve not closed")
-#     dx,dy = diff(x), diff(y)
-#     dl = hypot.(dx,dy)
-#     dl_mid = (dl .+ circshift(dl,1)) ./ 2
-#     θ = atan.(dy,dx)
-#     θ = [θ[end]; θ]
-#     dθ = fix_angle.(diff(θ))
-#     dl_mid, dθ
-# end
-# function curvature(x,y)
-#     dl_mid, dθ = _curve_stats(x,y)
-#     if any(dl_mid .< 1e-3)
-#         @warn("Some curve points are very close ($(minimum(dl_mid)) pixels " *
-#               "between mid-segments along curve)", maxlog=4)
-#     end
-#     κ = dθ ./ dl_mid # curvature
-# end
-
-# function worm_contour(img, level=otsu_threshold(img))
-#     c = raw_worm_contour(img, level)
-#     # place the highest (positive signed) curvature element first
-#     κ = curvature(c)
-#     i_max = argmax(κ)
-#     circshift!(c, 1-i_max)
-# end
-
-# Curve predicates, using Luxor.jl
-
-# luxorpoint(p::Luxor.Point) = p
-# luxorpoint(p) = Luxor.Point(p[1],p[2])
-
-# function incurve( p, c::Closed2DCurve )
-#     Luxor.isinside( luxorpoint(p), luxorpoint.(c); allowonedge=true )
-# end
-
 incurve( p, c::Closed2DCurve; on=true ) = inpolygon( p, vertices_closed(c); in=true, on=on, out=false )
 
 euclid_d(p,q) = norm(p-q)
@@ -239,9 +194,6 @@ end
 ## Plotting curves
 
 using RecipesBase
-#using GeometryTypes: Point
 using GeometryBasics: Point
 
-# @recipe f(c::Curve2) = Point.(c.vertices)
 @recipe f(c::Closed2DCurve) = vertices_closed(c)
-#@recipe f(::Type{<:Closed2DCurve}, ::Closed2DCurve) = (vertices_closed, identity)

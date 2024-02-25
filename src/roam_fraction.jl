@@ -25,8 +25,6 @@ _isroaming(speed, dangle, slope, f) = slope*(f(speed/binsize_speed) + 1) > f(dan
 # specify `max_speed` to filter out frames with smoothed speed 0 or higher than max_speed,
 # as done in the MATLAB script
 function isroaming(traj, rows, slope; max_speed = nothing, discretize = false)
-    # smspeed = imfilter(m2n(traj.speed[rows]), runmean_kernel)
-    # smdangle = imfilter(m2n(abs.(traj.dangle[rows])), runmean_kernel)
     smspeed = mapwindow(mean, m2n(traj.speed[rows]), -runmean_half_len:runmean_half_len)
     smdangle = mapwindow(mean, m2n(abs.(traj.dangle[rows])), -runmean_half_len:runmean_half_len)
     if max_speed !== nothing

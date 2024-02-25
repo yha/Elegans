@@ -2,12 +2,8 @@ using MAT
 using VideoIO
 using Images
 using ProgressLogging
-
-#const datadir = "D:/"
-#const datadir = normpath("$(@__DIR__)/../data")
-
-# TODO 
-# remove older "filepath_f" interface and cleanup
+using DataFrames
+using FileIO
 
 struct WellID
     experiment::String
@@ -57,68 +53,6 @@ function prefix(welldir)
     first(prefixes)
 end
 
-# `datadir` argument kept for backwards compatibility
-_filepath( welldir, pr, type, idx ) = "$welldir/$type$pr$(string(idx;pad=4)).mat"
-function filepath_f( welldir, datadir = nothing )
-    isnothing(datadir) || (welldir = joinpath( datadir, welldir ))
-    pr = prefix(welldir)
-    (type, idx) -> _filepath( welldir, pr, type, idx )
-end
-
-#filetypes = [(:coords, "corrd", "x_y_coor"),
-filetypes = [(:coords, "coord", "x_y_coor"),
-             (:cropped, "short", "mydata"),
-             #(:trace, "Trajectory", "Trace"),
-             (:size, "WormSize", "big")]
-
-for (sym, prefix, varname) in filetypes
-    @eval function $(Symbol(:read_,sym))(path_f, idx)
-        tr = matopen(path_f($prefix,idx)) do file
-            read(file,$varname)
-        end
-    end
-end
-
-# read old-format cropped frames
-
-# Matlab data sometimes has empty 2d matrices of Union{}
-_mat_frame_array(a::Array{UInt8,3}) = a
-_mat_frame_array(m::Matrix{Union{}}) = zeros(UInt8,0,0,3) # reshape(m, size(m)..., 1)
-
-function readframes( path_f, idx )
-    frames = vec( read_cropped( path_f, idx ) )
-    [colorview(RGB, normedview(permuteddimsview(_mat_frame_array(fr),(3,1,2)))) for fr in frames]
-end
-
-function video_prefix(welldir)
-    files = readdir(welldir)
-    path, dir = splitdir(welldir)
-    dir = chop(dir,tail=2)
-    matches = [match( Regex("shape($(escape_regex_str(dir)).*?)\\d+.mp4", "i"), f ) for f in files]
-    prefixes = Set( m[1] for m in matches if m !== nothing )
-    length(prefixes) > 1 && error("More than one prefix in dir $(dir)")
-    isempty(prefixes) ? 
-        nothing :
-        first(prefixes)
-end
-
-# `datadir` argument kept for backwards compatibility
-_videopath( welldir, pr, idx ) = "$welldir/shape$pr$(string(idx;pad=4)).mp4"
-# function videopath_f( welldir, datadir = nothing )
-#     isnothing(datadir) || (welldir = joinpath( datadir, welldir ))
-#     pr = video_prefix(welldir)
-#     pr === nothing && throw("No shape videos in $welldir")
-#     idx -> _videopath( welldir, pr, idx )
-# end
-
-read_video(path_f, idx) = VideoIO.load(path_f(idx))
-
-nfiles(path_f) = first( i for i in Iterators.countfrom(0)
-                             if !isfile(path_f("coord",i)) )
-#                             if !isfile(path_f("corrd",i)) )
-
-using DataFrames
-using FileIO
 
 _coords_jld2_path(wellpath) = joinpath(wellpath, "coords_and_size.jld2")
 _coords_jld2_path(ex, well, root) = _coords_jld2_path(joinpath(root, ex, well))
@@ -145,6 +79,62 @@ function load_coords_and_size(ex, well, root; err_on_wrong_well=true)
         return df
     end
 end
+
+
+
+# All the following is older API kept for backwards compatibility
+
+_filepath( welldir, pr, type, idx ) = "$welldir/$type$pr$(string(idx;pad=4)).mat"
+# `datadir` argument kept for backwards compatibility
+function filepath_f( welldir, datadir = nothing )
+    isnothing(datadir) || (welldir = joinpath( datadir, welldir ))
+    pr = prefix(welldir)
+    (type, idx) -> _filepath( welldir, pr, type, idx )
+end
+
+filetypes = [(:coords, "coord", "x_y_coor"),
+             (:cropped, "short", "mydata"),
+             (:size, "WormSize", "big")]
+
+for (sym, prefix, varname) in filetypes
+    @eval function $(Symbol(:read_,sym))(path_f, idx)
+        tr = matopen(path_f($prefix,idx)) do file
+            read(file,$varname)
+        end
+    end
+end
+
+# read old-format cropped frames
+
+# Matlab data sometimes has empty 2d matrices of Union{}
+_mat_frame_array(a::Array{UInt8,3}) = a
+_mat_frame_array(m::Matrix{Union{}}) = zeros(UInt8,0,0,3)
+
+function readframes( path_f, idx )
+    frames = vec( read_cropped( path_f, idx ) )
+    [colorview(RGB, normedview(permuteddimsview(_mat_frame_array(fr),(3,1,2)))) for fr in frames]
+end
+
+function video_prefix(welldir)
+    files = readdir(welldir)
+    _, dir = splitdir(welldir)
+    dir = chop(dir,tail=2)
+    matches = [match( Regex("shape($(escape_regex_str(dir)).*?)\\d+.mp4", "i"), f ) for f in files]
+    prefixes = Set( m[1] for m in matches if m !== nothing )
+    length(prefixes) > 1 && error("More than one prefix in dir $(dir)")
+    isempty(prefixes) ? 
+        nothing :
+        first(prefixes)
+end
+
+_videopath( welldir, pr, idx ) = "$welldir/shape$pr$(string(idx;pad=4)).mp4"
+
+read_video(path_f, idx) = VideoIO.load(path_f(idx))
+
+nfiles(path_f) = first( i for i in Iterators.countfrom(0)
+                             if !isfile(path_f("coord",i)) )
+#                             if !isfile(path_f("corrd",i)) )
+
 
 # Old API, importing directly from `mat` files:
 function import_coords( welldir, datadir = nothing; with_size=false )

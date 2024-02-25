@@ -24,14 +24,10 @@ function line2spline(line, th=0.01)
     spl = ParametricSpline(s, A; k = min(3,length(s)-1))
 end
 
-#resample_spline(spl, s) = ParametricSpline(s,spl(s))
-# do not assume input is length-parameterized
 resample_spline(spl, s) = line2spline(eachcol(spl(s)))
 
 
 points(spline, x) = Point2.(eachcol(spline(x)))
-
-#resample_line(line, s) = points( line2spline(line), s )
 
 resample_line_once(line, s) =
     any(p -> any(!isfinite, p), line) ?
@@ -40,7 +36,7 @@ resample_line_once(line, s) =
 
 # Iteratively fit spline and resample until distance of adjacent points is nearly constant
 # Returns the `(line, iters)` where `line` is the resampled line and `iters` is the 
-# number of iterations until convergence, or max_iters+1 is not converged
+# number of iterations until convergence, or max_iters+1 if not converged
 function resample_line(line, s; threshold = 0.99, max_iters = 100, warn_not_converged = true)
     evenness(x) = let (d_min, d_max) = extrema(norm, diff(x))
         d_min / d_max

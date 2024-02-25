@@ -26,9 +26,7 @@ function speed_heatmap_plot(speed_edges, σ, fwd)
     speeds = midpoints(speed_edges)
     heatmap(speeds, σ,
         reduce(hcat, fit(Histogram, f, speed_edges).weights for f in fwd)',
-        #c=:grays_r,
         xlabel = "speed",
-        #ylabel = "\$\\sigma\$",
         ylabel = "time",
         legend = false,
         colorbar = true,

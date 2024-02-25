@@ -32,7 +32,6 @@ function end_assignment_segments( ratios, contours, params=EndAssignmentParams()
 
     rnd = OffsetArray( map( c -> c isa AbstractVector && !isempty(c) ? roundness(c[1]) : missing,
                        contours.(irange) ), irange )
-    #mw(f) = mapwindow( f∘skipmissing, rnd, round_winlen )
     @info "computing roundness statistics" params axes(rnd)
     @time meanstd_rnd = mapwindow(rnd, params.round_winlen) do w
         sw = skipmissing(w)

@@ -93,9 +93,3 @@ function getstages!( ex, wellname, stages_path, file_boundaries, allstages=loads
     end
     wellstages
 end
-
-
-## TODO custom Stages type and AbstractTrees implementation
-#using AbstractTrees
-#AbstractTrees.children(d::Dict) = collect(d)
-#AbstractTrees.children(a::AbstractArray) = ()

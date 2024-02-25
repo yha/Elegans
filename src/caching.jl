@@ -110,8 +110,6 @@ function init_contours( well, method, contours_path;
     contours, contours_file, vcache
 end
 
-# TODO use `@save` macro when keyword syntax is supported (next version of JLD2: PR #198):
-# @save contours_file contours=contours.cache
 save_contours(contours, contours_file) = save(contours_file, Dict("contours"=>contours.cache))
 
 function compute_all_contours( ex, root, th, g, contours_path )
@@ -179,8 +177,6 @@ function midpoint_cache( traj, contours, s = default_midpoints_s;
     end
 end
 
-
-
 # TODO have contour_method stored with contours
 # TODO remove this? 
 #      a midpoint cache with only some midpoints computed in advance is mostly useless;
@@ -202,7 +198,6 @@ function init_midpoints( well, traj, contours, s=0:0.025:1;
 end
 
 function well2midpoints_cache(contour_methods, cache = LRU{WellID,Any}(; maxsize=100); 
-        #stagedict=loadstages(), 
         midpoints_path, 
         headtail_method = default_headtail_method, end_assignment_params = EndAssignmentParams(),
         full = false)

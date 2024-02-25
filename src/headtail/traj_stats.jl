@@ -1,13 +1,3 @@
-# function mean_var_nonan(e)
-#     ef = filter(p->!any(isnan,p),e)
-#     μ, Σ = mean(ef), cov(ef)
-# end
-#
-# function dir_circvar(e)
-#     dirs = 2 .* angle.(diff(v))
-#     circvar.(filter.(isfinite,dirs))
-# end
-
 ## speed
 
 using ImageFiltering: centered
@@ -21,8 +11,6 @@ function speed_stats(e1, e2, center, t, s)
     lsr, n1, n2, n_c
 end
 
-
-#using StaticArrays
 
 _cov(v::AbstractArray{<:StaticVector{N}}) where N = isempty(v) ? (@SMatrix fill(NaN,N,N)) : cov(v)
 cov_finite(v) = _cov(filter(p -> any(isfinite, p), v))
@@ -60,25 +48,6 @@ function direction_stats(e1, e2, center, t, winlen, s)
     ldvr = imfilter( log.( c1 ./ c2 ), gaussian(s), NA() )
     ldvr, c1, c2, c_c, a1, a2, a_c
 end
-
-# polar(p::Point2) = (norm = norm(p), angle=angle(p))
-# from_polar(polar) = from_polar( polar.norm, polar.angle )
-# from_polar(norm, angle) = Point2( norm*cos(angle), norm*sin(angle) )
-#
-# function direction_stats1(e1, e2, center, t, winlen)
-#     k = gaussian(t)
-#     d(v) = polar.(diff(imfilter(v,k,NA())))
-#     d1 = d(e1)
-#     d2 = d(e2)
-#     d_c = d(center)
-#     dirvar_weighted(w) = 1 ./ norm(mean( from_polar(n,2a) for (n,a) in w ))
-#     #dirvar_weighted(w) = 1 ./ norm(mean( from_polar(1,2a) for (n,a) in w ))
-#     c1 = mapwindow( dirvar_weighted, d1, winlen )
-#     c2 = mapwindow( dirvar_weighted, d2, winlen )
-#     c_c = mapwindow( dirvar_weighted, d_c, winlen )
-#     ldvr = bounded_log_ratio.( c1, c2 )
-#     ldvr, c1, c2, c_c
-# end
 
 ##
 
