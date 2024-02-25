@@ -2,7 +2,6 @@ using IterTools
 using StatsBase
 using ImageFiltering
 using ImageFiltering.KernelFactors: gaussian
-using GeometryBasics
 using PolygonOps
 using LinearAlgebra
 using OffsetArrays

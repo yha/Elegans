@@ -1,8 +1,9 @@
 using Contour
-import Images, ImageFiltering
+import Images
+using ImageFiltering
 using Images: otsu_threshold, imfilter
+using GeometryBasics: Point
 using CircularArrays
-using GeometryBasics
 using LinearAlgebra
 using PolygonOps
 using OffsetArrays: no_offset_view

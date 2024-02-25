@@ -25,8 +25,6 @@ end
 
 
 root = "U:/experiments/reemy/"
-
-root = "U:/experiments/reemy"
 exs = filter(s->contains(s, r"^RA\d{5}_\d{6}$"), readdir(root))
 for ex in exs
     @assert isdir(joinpath(root,ex))

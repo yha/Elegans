@@ -1,5 +1,5 @@
 using OffsetArrays
-using GeometryBasics
+using GeometryBasics: Point
 
 # TODO: missingpoints can be changed from NaN to missing when ImageFiltering
 #       supports missing values.

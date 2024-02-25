@@ -1,5 +1,6 @@
 using ImageFiltering.KernelFactors: gaussian
-using GeometryBasics, LinearAlgebra
+using GeometryBasics: Point2
+using LinearAlgebra
 using Statistics
 using StatsBase
 using ProgressLogging: @progress
