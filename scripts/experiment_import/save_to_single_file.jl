@@ -7,39 +7,17 @@ using JLD2
 
 #root = "E:/experiments/reemy"
 #exs = filter(s->contains(s, r"^RA\d{5}_\d{6}$"), readdir(root))
-#root = "U:/experiments/manal/Coords"
-#exs = filter(s->contains(s, r"^NG\d{3}"), readdir(root))
-#root = "G:/experiments/sharonin"
-#root = "I:/CB1611, mec-4 experiments/coords"
-root = "G:/experiments/Nabeel/XY Results all"
-exs = filter(s->contains(s, r"^SI\d+"), readdir(root))
-
-#exs = ["RA00119_131220"]
-# root = "U:/experiments/eshkar"
-# exs = filter(s->contains(s, r"^EN\d{5}_\d{6}"), readdir(root))
+root = "U:/experiments/manal/Coords"
+exs = filter(s->contains(s, r"^NG\d{3}"), readdir(root))
 
 for ex in exs
     @assert isdir(joinpath(root,ex))
 end
 
-#exwells = [(ex,well) for ex in exs for well in filter(s->startswith(s,r"cam"i), readdir(joinpath(root,ex)))]
 exwells  = [(ex, well) for ex in exs for well in readdir(joinpath(root,ex))
                       if isdir(joinpath(root,ex,well)) && startswith(well,r"cam"i)]
 
-#exwells = [("NG030, SP1196, 04-09-2022", "cam040-w2")]
-
 ## Bad wells:
-
-# badwells = [
-#     [findfirst(==(("020920_RA00083", "CAM516A3")), exwells),
-#     findfirst(==(("080720_RA00057", "CAM304A1")), exwells),
-#     findfirst(==(("111219_RA00031", "CAM302A1")), exwells),
-#     findfirst(==(("111219_RA00031", "CAM302A3")), exwells),
-#     findfirst(==(("260820_RA00079", "CAM304A1")), exwells)
-#     ];
-#     findall(t->t[1] == "180819_RA00015", exwells);    # Two runs (experiment stopped and restarted)
-#     findall(t->t[1] == "300120_RA00036", exwells)     # Two runs
-# ]
 
 # badwells = [
 #     [
@@ -80,4 +58,3 @@ using ProgressLogging
     @time @save dest ex well traj
 end
 
-##
