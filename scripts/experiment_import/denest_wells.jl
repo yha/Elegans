@@ -1,12 +1,14 @@
 """
-    Go over experiments and move cams:
+    Go over experiments and move wells:
         <experiment>/<subdir>/CAMxxxx ==> <expriment>/CAMxxxx
     Also removes the intermediate subdirs (any <experiment>/<subdir> where
     at least one CAM was found).
 """
 
+root = "G:/experiments/Nabeel/XY Results all/"
+
 using Glob
-function denest_cams(root; print_only=false)
+function denest_wells(root; print_only=false)
     for ex in readdir(root)
         expath = joinpath(root,ex)
         println("Reading $expath...")
@@ -39,14 +41,9 @@ function denest_cams(root; print_only=false)
     #commands
 end
 
-#root = "E:/Dropbox (Technion Dropbox)/Experiments/reemy"
-#root = "Q:/Reemy Nasser/experiments"
-#root = "U:/experiments/reemy/new"
-#root = "U:/experiments/manal/RESULTS XY/"
-root = "G:/experiments/Nabeel/XY Results all/"
 
 # to print commands with moving
-denest_cams(root, print_only=true)
+denest_wells(root, print_only=true)
 ##
-#denest_cams(root)
+#denest_wells(root)
 
