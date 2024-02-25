@@ -64,13 +64,6 @@ trying(f) = (args...) -> try_return(()->f(args...))
 
 skipex(v) = (x for x in v if !(x isa Exception))
 
-# using ResultTypes
-# passerror(f) = errfilter(f, ResultTypes.iserror, ResultTypes.unwrap, first)
-# passerror(f) = function (args...)
-#     errs = Iterators.filter(ResultTypes.iserror,args)
-#     isempty(errs) ? f((unwrap(a) for a in args)...) : first(errs)
-# end
-
 ## Spreading non-missing values
 
 function spread!(out,in,mask,miss=missing)
@@ -87,4 +80,3 @@ function spread!(out,in,mask,miss=missing)
     out
 end
 spread(x,mask,miss=missing) = spread!(similar(mask,Union{eltype(x),typeof(miss)}),x,mask,miss)
-#spread_nan(x,mask) = spread(x,mask,NaN)
