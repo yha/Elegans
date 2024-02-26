@@ -1,0 +1,31 @@
+[deps]
+CSSUtil = "70588ee8-6100-5070-97c1-3cb50ed05fe8"
+DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
+Distributed = "8ba89e20-285c-5b6f-9357-94700520ee1b"
+Elegans = "27ab0b70-9e64-11e9-288f-a5d350afe8a8"
+GeometryBasics = "5c1252a2-5f33-56bf-86c9-59e7332b4326"
+ImageFiltering = "6a3955dd-da59-5b1f-98d4-e7296123deb5"
+Images = "916415d5-f1e6-5110-898d-aaa5f9f070e0"
+IterTools = "c8e1da08-722c-5040-9ed9-7db0dc04731e"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+Logging = "56ddb016-857b-54e1-b83d-db4d58db5568"
+LoggingExtras = "e6f89c97-d47a-5376-807f-9c37f3926c36"
+Missings = "e1d29d7a-bbdc-5cf2-9ac0-f12de2c33e28"
+Mux = "a975b10e-0019-58db-a62f-e48ff68538c9"
+ObservablePmap = "471f3579-fe7c-4d8d-9c38-de9ac94d91b4"
+OffsetArrays = "6fe1bfb0-de20-5000-8ca7-80f57d26f881"
+ProgressLogging = "33c8b6b6-d38a-422a-b730-caa89a2f386c"
+StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
+Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
+TerminalLoggers = "5d786b92-1e48-4d6f-9151-6b4477ca9bed"
+Unzip = "41fe7b60-77ed-43a1-b4f0-825fd5a5650d"
+WebIO = "0f1e0344-ec1d-5b48-a673-e5cf874b6c29"
+# Added as a dep because the `compat` is not respected on `weakdeps`
+WebSockets = "104b5d7c-a370-577a-8038-80a2059c5097"
+
+# [weakdeps]
+# WebSockets = "104b5d7c-a370-577a-8038-80a2059c5097"
+
+[compat]
+# WebIO.jl has wrong compat entry for WebSockets, see WebIO issue #513
+WebSockets = "~1.5"
