@@ -12,12 +12,8 @@ function denest_wells(root; print_only=false)
     for ex in readdir(root)
         expath = joinpath(root,ex)
         println("Reading $expath...")
-        #toplevel_campaths = glob("CAM*", expath)
         nested_campaths = glob([fn"*", fn"CAM*"i], expath)
 
-        #isempty(nested_campaths) && continue
-
-        #toplevel_camnames = relpath.(toplevel_campaths,expath)
         intermediates = unique(normpath.(joinpath.(nested_campaths, "..")))
 
         for campath in nested_campaths
@@ -38,7 +34,6 @@ function denest_wells(root; print_only=false)
             print_only || rm(path)
         end
     end
-    #commands
 end
 
 
