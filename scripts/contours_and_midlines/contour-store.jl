@@ -51,12 +51,6 @@ contour_method2stages = Dict(
     (method => sort([stage for (stage,m) in contour_methods if m == method])) for method in unique(values(contour_methods))
 )
 
-# contour_method = Thresholding(1.0,0.34)
-# stages = nothing
-# #stages = 1:5
-# # contour_method = Thresholding(1.0,0.35)
-# # stages = 1:1
-
 allstages = loadstages(stage_path)
 
 ##
@@ -96,6 +90,9 @@ remote_procs = n_remote == 0 ? Int[] :
                       exename = "$remote_root/julia-$VERSION/bin/julia",
                       exeflags = "--project"
                       )
+
+
+@assert all(==(remote_project_root), remotecall_fetch(pwd, i) for i in remote_procs)
 
 # ##
 # @everywhere using Pkg
@@ -155,7 +152,6 @@ end
 
 using Elegans
 @everywhere using Elegans
-#@everywhere include(joinpath(pwd(),"scripts/midline/midline-stats-funcs.jl"))
 
 ##
 
@@ -196,7 +192,6 @@ using WebIO, CSSUtil, Mux
 @everywhere using Logging: current_logger, with_logger
 @everywhere using LoggingExtras: EarlyFilteredLogger
 
-#summ, task = ologpmap(exwells; on_error=identity) do (ex, wellname)
 summ, task = ologpmap(well_method_combinations; on_error=identity) do ((ex, wellname), contour_method)
     with_logger(EarlyFilteredLogger( log -> log.group != :videoread, current_logger() )) do
 
