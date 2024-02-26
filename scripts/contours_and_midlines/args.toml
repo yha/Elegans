@@ -3,10 +3,10 @@ local_root = "U:/"
 
 # paths relative to `local_root`:
 # input experiments (output of MATLAB scripts after pre-processing by Julia scripts in `scripts/experiment_import`)
-ex_dir = "experiments/sharon"
+ex_dir = "experiments/"
 # outputs files: contours and midpoints
-contours_dir = "cached-data/contours-tmp"
-midpoints_dir = "cached-data/midpoints"
+contours_dir = "contours"
+midpoints_dir = "midpoints"
 
 # Location of `stages.toml` file on local machine. If relative, resolved from project root (location of `Project.toml`).
 stage_path = "../../stages.toml"
@@ -16,17 +16,17 @@ logdir = "worker-logs"
 
 [dist]
 # remote host name or address
-remote = "sternlab@bi-sternlab25lin"
+remote = ""
 # number of local and remote workers
 n_local = 3
-n_remote = 1
+n_remote = 0
 # `local_root` and `remote_root` should point to the same directory from local and remote machine
 # (e.g. through samba).
 # The remote should have the same version of julia as the one running the pipeline script, 
 # at `$remote_root/julia-$VERSION/bin/julia`
 remote_root = "/home/sternlab"
 # Location of Project.toml on remote. If relative, resolved from `remote_root`.
-remote_project_root = ".julia/dev/Elegans/scripts/contours_and_midlines"
+remote_project_root = "Elegans/scripts/contours_and_midlines"
 
 [params]
 # if set, existing contour files are assumed to be fine and will not be updated
