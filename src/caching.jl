@@ -60,13 +60,18 @@ contour_cache( videocache, method) = trying_cache(
 contours_methodname(m::Thresholding) = "$(m.level)-$(m.σ)"
 contours_methodname(m::ContouringMethod) = string(m)
 
+"""
+    contours_filename(well::Well, method, contours_path)
+File path inside `contours_path` where contours are to be stored for this well and contouring method `method`.
+"""
+contours_filename(well::Well, method, contours_path) = contours_filename( 
+        joinpath(well.experiment, well.well), method, contours_path )
+# path based method retained for backwards compatibility
 function contours_filename(well_relpath, method, contours_path )
     wellname = replace( well_relpath,  r"[\\/]" => "-" )
     m = contours_methodname(method)
-    contours_file = joinpath(contours_path,"contours-$m-$wellname.jld2")
+    joinpath(contours_path,"contours-$m-$wellname.jld2")
 end
-contours_filename(well::Well, method, contours_path) = contours_filename( 
-        joinpath(well.experiment, well.well), method, contours_path )
 
 function load_contours( contours_file, vcache )
     @info "Loading cached contours from $contours_file ..."
@@ -93,6 +98,24 @@ function load_contours( contours_file, vcache )
     stored_contours
 end
 
+
+"""
+    contours, contours_file, vcache = init_contours( well, method, contours_path; 
+            traj=load_coords_and_size(well), err_on_missing_contour_file=false )
+
+Initialize a `VideoCache` `vcache` and a contour cache `contours` for the given `well`, 
+using the contouring method `method`, with contour file at `contours_path`.
+- The returned cache `contours` may be called as `contours(i)` to retrieve the contours for the 
+`i`th frame, either by computing the contours and storing in the cache, or by loading from the cache. 
+The cache dict is available as `contours.cache`.
+- `contours_file` is a file path inside `contours_path` where existing contours for this well and method 
+are searched for first (returned by `contours_filename`). If a contour file already exist there, 
+contours found there are loaded first, otherwise error if `err_on_missing_contour_file` is set.
+- `vcache` is a newly created `VideoCache` for this well.
+
+To update the contours file after more contours have been computed, use
+`save_contours(contours, contours_file)`
+"""
 function init_contours( well, method, contours_path; 
                         traj=load_coords_and_size(well), err_on_missing_contour_file=false )
     @info "Initializing video cache ($(well.path))..."
