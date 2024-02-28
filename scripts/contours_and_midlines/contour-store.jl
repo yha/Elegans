@@ -22,23 +22,23 @@ using Elegans
 using Distributed
 
 
-contour_methods = Dict( 1 => Thresholding(1.0,0.34), 
-    (i => Thresholding(1.0,0.35) for i in 2:5)...
+contour_methods = Dict( 1 => Thresholding(1.0,0.35), 
+    (i => Thresholding(1.0,0.34) for i in 2:5)...
 )
 
 contour_method2stages = Dict(
     (method => sort([stage for (stage,m) in contour_methods if m == method])) for method in unique(values(contour_methods))
 )
 
-allstages = loadstages(stage_path)
+stagedict = loadstages(stage_path)
 
 ##
 
 exs = readdir(local_ex_path)
-filter!(in(keys(allstages)), exs)
+filter!(in(keys(stagedict)), exs)
 @info "Found $(length(exs)) experiments (directories in `$local_ex_path` with entry at `$stage_path`)"
 
-well_ids = [(ex,well) for ex in exs for well in sort!(collect(keys(allstages[ex])))]
+well_ids = [(ex,well) for ex in exs for well in sort!(collect(keys(stagedict[ex])))]
 @info "...$(length(well_ids)) wells"
 
 ##
@@ -73,19 +73,20 @@ remote_procs = n_remote == 0 ? Int[] :
 #     "\n"))
 
 
-##
-
-@everywhere function contour_counts(well_data, nbins)
-    n = length(well_data.traj.x)
-    bin_edges = round.(Int, range(0, n; length=nbins+1))
-    completed = sort!(collect(keys(well_data.contours.cache)))
-    cumcounts = [searchsortedfirst( completed, edge ) for edge in bin_edges]
-    counts = diff(cumcounts)
-    counts, bin_edges
-end
 
 
 ##
+
+@info "Loading packages..."
+
+using Elegans
+@everywhere using Elegans
+
+##
+
+@everywhere using DataStructures
+@everywhere using ProgressLogging
+@everywhere using TerminalLoggers
 
 @everywhere using ObservablePmap
 
@@ -118,14 +119,6 @@ end
 ##
 
 
-using Elegans
-@everywhere using Elegans
-
-##
-
-@everywhere using DataStructures
-@everywhere using ProgressLogging
-@everywhere using TerminalLoggers
 
 @everywhere function store_contours_remote(well_data, stage_ends, frames; chunklen = 1000)
     set_status(str) = @info str
@@ -151,16 +144,26 @@ using Elegans
     end
 end
 
+##
+
+@everywhere function contour_counts(well_data, nbins)
+    n = length(well_data.traj.x)
+    bin_edges = round.(Int, range(0, n; length=nbins+1))
+    completed = sort!(collect(keys(well_data.contours.cache)))
+    cumcounts = [searchsortedfirst( completed, edge ) for edge in bin_edges]
+    counts = diff(cumcounts)
+    counts, bin_edges
+end
 
 ##
 
-well_method_combinations = Iterators.product(well_ids, keys(contour_method2stages))
+method_well_combinations = Iterators.product(keys(contour_method2stages), well_ids)
 
 using WebIO, CSSUtil, Mux
 @everywhere using Logging: current_logger, with_logger
 @everywhere using LoggingExtras: EarlyFilteredLogger
 
-summ, task = ologpmap(well_method_combinations; on_error=identity) do ((ex, wellname), contour_method)
+summ, task = ologpmap(method_well_combinations; on_error=identity) do (contour_method, (ex, wellname))
     with_logger(EarlyFilteredLogger( log -> log.group != :videoread, current_logger() )) do
 
         isremote = myid() in remote_procs
@@ -187,7 +190,7 @@ summ, task = ologpmap(well_method_combinations; on_error=identity) do ((ex, well
         well_data = (; contours, contours_file, traj)
 
         @info "... loaded $well_str."
-        stage_ends = allstages[well.experiment][well.well]
+        stage_ends = stagedict[well.experiment][well.well]
         stage_ranges = [x+1:y for (x,y) in IterTools.partition(stage_ends,2,1)]
         stages = contour_method2stages[contour_method]
         stage_i = intersect(stages, 1:length(stage_ends)-1)
