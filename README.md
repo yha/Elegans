@@ -59,7 +59,7 @@ For running the analysis locally, no changes are needed under the `[dist]` secti
 After configuring `args.toml`, running the script `scripts/contours_and_midlines/contour-store.jl` will install required packages and
 start the contour computation, parallelized among workers. e.g.,
 ```
-julia> include("ElegansTimeSeries/scripts/de_pca_pipeline_dist.jl")
+julia> include("scripts/contours_and_midlines/contour-store.jl")
 [...]
 Progress available at localhost:8108 (copied to clipboard)
 ```
@@ -106,7 +106,7 @@ elegans-pipeline> ~/julia-1.9.3/bin/julia
 (@v1.9) pkg> activate Elegans/
   Activating project at `~/elegans-pipeline/Elegans`
 
-(ElegansTimeSeries) pkg> instantiate
+(Elegans) pkg> instantiate
 ```
 On the local machine, list the location of the repository under `dist.remote_project_root` in `args.toml`, and set `n_remote` to the number of remote workers requires:
 ```toml
@@ -114,7 +114,7 @@ On the local machine, list the location of the repository under `dist.remote_pro
 # ...
 n_remote = 4
 # ...
-remote_project_root = "elegans-pipeline/ElegansTimeSeries" # resolved relative to `dist.root`
+remote_project_root = "path/to/Elegans" # resolved relative to `dist.root`
 ```
 
 You should also set up password-less ssh access from the local machine to the remote.
