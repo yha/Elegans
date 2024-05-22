@@ -26,14 +26,17 @@ function _fetch_video(cache::VideoCache, fileno)
     end
 end
 
-function get_frame(cache::VideoCache, i)
+function get_frame(cache::VideoCache, i; unpad = true)
     fileno, frameno = globalframe_to_fileframe(cache, i)
     frames = _fetch_video(cache, fileno)
     frame = frames[frameno]
-    # Frame should have odd size, but may be padded to even size
-    # due to encoding limitations. Undo padding.
-    frame = frame[1:end-mod((size(frame,1)+1),2),
-                  1:end-mod((size(frame,2)+1),2)]
+    if unpad
+        # Frame should have odd size, but may be padded to even size
+        # due to encoding limitations. Undo padding.
+        frame = frame[1:end-mod((size(frame,1)+1),2),
+                    1:end-mod((size(frame,2)+1),2)]
+    end
+    frame
 end
 
 function prefetch_framerange(cache::VideoCache, from, to)
