@@ -222,7 +222,7 @@ summ, task = ologpmap(well_method_combinations; on_error=identity) do ((ex, well
         stage_ends = allstages[well.experiment][well.well]
         stage_ranges = [x+1:y for (x,y) in IterTools.partition(stage_ends,2,1)]
         stages = contour_method2stages[contour_method]
-        stage_i = something(stages, 1:length(stage_ends)-1)
+        stage_i = intersect(stages, 1:length(stage_ends)-1)
         frames = union(stage_ranges[stage_i]...)
         store_contours_remote( well_data, stage_ends, frames )
     end
