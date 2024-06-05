@@ -7,35 +7,14 @@ Pkg.activate(local_project_root)
 Pkg.instantiate()
 
 ##
-using TOML
 
-args = TOML.parsefile("$(@__DIR__)/args.toml")
-paths, dist = args["paths"], args["dist"]
-
-stage_path   = normpath(joinpath(local_project_root, paths["stage_path"]))
-
-local_root = paths["local_root"]
-logdir = paths["logdir"]
-
-remote_root = dist["remote_root"]
-remote_project_root = "$remote_root/$(dist["remote_project_root"])"
-
-ex_dir        = paths["ex_dir"]
-contours_dir  = paths["contours_dir"]
-
-local_ex_path       = normpath(joinpath(local_root, ex_dir))
-local_contours_path = normpath(joinpath(local_root, contours_dir))
-
-assert_isdir(path)  = isdir(path)  || error("Not found or not a directory: $path")
-assert_isfile(path) = isfile(path) || error("Not found or not a regular file: $path")
-
-assert_isdir(local_root)
-assert_isdir(local_project_root)
-assert_isdir(local_ex_path)
-assert_isdir(local_contours_path)
-assert_isfile(stage_path)
-
-skip_existing = args["params"]["skip_existing"]
+include("read_args.jl")
+(;
+    stage_path, local_root, remote_root, remote_project_root, logdir,
+    ex_dir, contours_dir, midpoints_dir, local_ex_path, local_contours_path,
+    remote, n_remote, n_local,
+    skip_existing
+) = read_args(local_project_root)
 
 ##
 
@@ -43,44 +22,33 @@ using Elegans
 using Distributed
 
 
-contour_methods = Dict( 1 => Thresholding(1.0,0.34), 
-    (i => Thresholding(1.0,0.35) for i in 2:5)...
+contour_methods = Dict( 1 => Thresholding(1.0,0.35), 
+    (i => Thresholding(1.0,0.34) for i in 2:5)...
 )
 
 contour_method2stages = Dict(
     (method => sort([stage for (stage,m) in contour_methods if m == method])) for method in unique(values(contour_methods))
 )
 
-allstages = loadstages(stage_path)
+stagedict = loadstages(stage_path)
 
 ##
 
 exs = readdir(local_ex_path)
-
-filter!(in(keys(allstages)), exs)
-
+filter!(in(keys(stagedict)), exs)
 @info "Found $(length(exs)) experiments (directories in `$local_ex_path` with entry at `$stage_path`)"
 
-exwells = [(ex,well) for ex in exs for well in sort!(collect(keys(allstages[ex])))]
-
-@info "...$(length(exwells)) wells"
-
-##
-
-#using DataStructures
-
-
+well_ids = [(ex,well) for ex in exs for well in sort!(collect(keys(stagedict[ex])))]
+@info "...$(length(well_ids)) wells"
 
 ##
 
 using Distributed
 
-remote = dist["remote"]
-n_local, n_remote = dist["n_local"], dist["n_remote"]
 
 @info "Starting workers..." remote_root remote_project_root local_root local_project_root n_local n_remote
 
-rmprocs(workers()...)
+rmprocs(setdiff(workers(), [1])...)
 local_procs = cd(local_project_root) do
     addprocs(n_local; exeflags = "--project")
 end
@@ -105,19 +73,20 @@ remote_procs = n_remote == 0 ? Int[] :
 #     "\n"))
 
 
-##
-
-@everywhere function contour_counts(well_data, nbins)
-    n = length(well_data.traj.x)
-    bin_edges = round.(Int, range(0, n; length=nbins+1))
-    completed = sort!(collect(keys(well_data.contours.cache)))
-    cumcounts = [searchsortedfirst( completed, edge ) for edge in bin_edges]
-    counts = diff(cumcounts)
-    counts, bin_edges
-end
 
 
 ##
+
+@info "Loading packages..."
+
+using Elegans
+@everywhere using Elegans
+
+##
+
+@everywhere using DataStructures
+@everywhere using ProgressLogging
+@everywhere using TerminalLoggers
 
 @everywhere using ObservablePmap
 
@@ -150,14 +119,6 @@ end
 ##
 
 
-using Elegans
-@everywhere using Elegans
-
-##
-
-@everywhere using DataStructures
-@everywhere using ProgressLogging
-@everywhere using TerminalLoggers
 
 @everywhere function store_contours_remote(well_data, stage_ends, frames; chunklen = 1000)
     set_status(str) = @info str
@@ -183,16 +144,26 @@ using Elegans
     end
 end
 
+##
+
+@everywhere function contour_counts(well_data, nbins)
+    n = length(well_data.traj.x)
+    bin_edges = round.(Int, range(0, n; length=nbins+1))
+    completed = sort!(collect(keys(well_data.contours.cache)))
+    cumcounts = [searchsortedfirst( completed, edge ) for edge in bin_edges]
+    counts = diff(cumcounts)
+    counts, bin_edges
+end
 
 ##
 
-well_method_combinations = Iterators.product(exwells, keys(contour_method2stages))
+method_well_combinations = Iterators.product(keys(contour_method2stages), well_ids)
 
 using WebIO, CSSUtil, Mux
 @everywhere using Logging: current_logger, with_logger
 @everywhere using LoggingExtras: EarlyFilteredLogger
 
-summ, task = ologpmap(well_method_combinations; on_error=identity) do ((ex, wellname), contour_method)
+summ, task = ologpmap(method_well_combinations; on_error=identity) do (contour_method, (ex, wellname))
     with_logger(EarlyFilteredLogger( log -> log.group != :videoread, current_logger() )) do
 
         isremote = myid() in remote_procs
@@ -219,11 +190,11 @@ summ, task = ologpmap(well_method_combinations; on_error=identity) do ((ex, well
         well_data = (; contours, contours_file, traj)
 
         @info "... loaded $well_str."
-        stage_ends = allstages[well.experiment][well.well]
+        stage_ends = stagedict[well.experiment][well.well]
         stage_ranges = [x+1:y for (x,y) in IterTools.partition(stage_ends,2,1)]
         stages = contour_method2stages[contour_method]
         stage_i = intersect(stages, 1:length(stage_ends)-1)
-        frames = union(stage_ranges[stage_i]...)
+        frames = reduce(union, stage_ranges[stage_i])
         store_contours_remote( well_data, stage_ends, frames )
     end
 end
