@@ -116,8 +116,7 @@ remote_procs = n_remote == 0 ? Int[] :
             stage2conf = OrderedDict(stages .=> conf)
 
             @info "Storing midpoints..." well=id_str method path
-            jldsave(path; midpoints = stage2midpts, iter = stage2iters, conf = stage2conf)
-            #save(path, Dict("midpoints" => stage2midpts, "iters" => stage2iters, "conf" => stage2conf))
+            jldsave(path; midpoints = stage2midpts, iters = stage2iters, conf = stage2conf)
             @info "Midpoints successfully stored" well=id_str
         end
     end
